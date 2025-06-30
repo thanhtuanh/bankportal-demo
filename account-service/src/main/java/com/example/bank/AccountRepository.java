@@ -1,4 +1,3 @@
-
 package com.example.bank;
 
 import org.springframework.data.jpa.repository.JpaRepository;

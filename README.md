@@ -565,6 +565,9 @@ COPY target/auth-service-*.jar app.jar
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "/app.jar"]
 ```
+## Screenshot
+
+[text](docs/frontend.pdf)
 
 ## 📄 Lizenz
 

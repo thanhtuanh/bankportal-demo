@@ -63,6 +63,7 @@ public class AccountService {
       throw new RuntimeException("Betrag muss positiv sein");
     }
 
+    // WICHTIG: Die genauen Fehlermeldungen die der Test erwartet
     Account from = accountRepository.findById(request.getFromAccountId())
         .orElseThrow(() -> new RuntimeException("Senderkonto nicht gefunden"));
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
+import { tap, catchError, map } from 'rxjs/operators';
 import { LoginRequest, LoginResponse, RegisterRequest, User } from '../models/auth';
 
 @Injectable({
@@ -40,13 +40,40 @@ export class AuthService {
 
     console.log('Clean register data:', cleanData);
 
-    return this.http.post(`${this.apiUrl}/register`, cleanData)
-      .pipe(
-        tap(response => {
-          console.log('Registration response:', response);
-        }),
-        catchError(this.handleError)
-      );
+    return this.http.post(`${this.apiUrl}/register`, cleanData, {
+      responseType: 'text', // WICHTIG: Text statt JSON erwarten
+      observe: 'response'   // Komplette HTTP Response mit Status Code
+    }).pipe(
+      tap(response => {
+        console.log('Registration response:', response);
+        console.log('Status Code:', response.status);
+        console.log('Response Body:', response.body);
+      }),
+      // Response in standardisiertes Format umwandeln
+      map((response: any) => {
+        if (response.status === 201 || response.status === 200) {
+          return {
+            success: true,
+            message: response.body || 'Registrierung erfolgreich'
+          };
+        }
+        throw new Error(`Unerwarteter Status: ${response.status}`);
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.log('Registration error details:', error);
+        
+        // HTTP 201 ist ERFOLG, nicht Fehler!
+        if (error.status === 201) {
+          console.log('✅ Registration successful (Status 201 caught as error)');
+          return of({
+            success: true,
+            message: error.error || 'Registrierung erfolgreich'
+          });
+        }
+        
+        return this.handleError(error);
+      })
+    );
   }
 
   logout(): void {

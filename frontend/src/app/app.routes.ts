@@ -5,9 +5,10 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  // NOTFALL-LÖSUNG: Keine Redirects, nur direkte Routes
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
-  { path: '**', redirectTo: '/login' }
+  { path: '', component: LoginComponent }, // DIREKTER COMPONENT statt Redirect
+  // Entfernt: { path: '**', redirectTo: '/login' } - Das verursacht Loops
 ];
