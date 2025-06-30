@@ -1,0 +1,6 @@
+<h3>➕ Neues Konto erstellen</h3>
+<input [(ngModel)]="account.owner" placeholder="Name">
+<input type="text" [(ngModel)]="account.balance" placeholder="Startguthaben">
+
+<button (click)="createAccount()">Konto erstellen</button>
+<p *ngIf="message">{{ message }}</p>

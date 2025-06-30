@@ -1,0 +1,9 @@
+<h3>💸 Überweisen</h3>
+
+<input type="text" [(ngModel)]="transferData.fromAccountId" placeholder="Von Konto-ID">
+<input type="text" [(ngModel)]="transferData.toAccountId" placeholder="Zu Konto-ID">
+<input type="text" [(ngModel)]="transferData.amount" placeholder="Betrag">
+
+<button (click)="submitTransfer()">Überweisen</button>
+
+<p *ngIf="message">{{ message }}</p>

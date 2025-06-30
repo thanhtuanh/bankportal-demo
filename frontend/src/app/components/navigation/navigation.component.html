@@ -1,0 +1,12 @@
+<nav class="navbar">
+  <div class="nav-brand" (click)="goToDashboard()">
+    <h1>🏦 Bank Portal</h1>
+  </div>
+
+  <div class="nav-user" *ngIf="currentUser">
+    <span class="welcome">Willkommen, {{ currentUser.username }}!</span>
+    <button class="btn btn-logout" (click)="onLogout()">
+      🚪 Abmelden
+    </button>
+  </div>
+</nav>

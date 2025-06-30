@@ -1,0 +1,72 @@
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+.apdisk
+.TemporaryItems
+
+# === IDEs & Editoren ===
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.sw?
+*.swo
+*.bak
+*.tmp
+*.log
+
+# === Java / Maven / Spring Boot ===
+*.class
+*.jar
+*.war
+*.ear
+target/
+**/target/
+
+# Maven Wrapper
+.mvn/
+**/mvnw
+**/mvnw.cmd
+
+# === Angular / Node.js ===
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.angular/cache/
+frontend/.env
+
+# Optional: Lockfiles
+frontend/package-lock.json
+frontend/yarn.lock
+
+# === Docker ===
+*.pid
+*.tar
+.dockerignore
+docker-compose.override.yml
+
+# === Umgebungsvariablen ===
+.env
+*.local
+*.env.*
+
+# === Projektspezifisch ===
+.history/
+
+# === Test & Coverage ===
+coverage/
+*.out
+*.test.js
+*.spec.ts
+test-results/
+
+# === Windows / System ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini

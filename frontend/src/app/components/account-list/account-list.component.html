@@ -1,0 +1,99 @@
+<div class="account-list">
+  <h2>🏦 Kontoübersicht</h2>
+  <p class="user-info">Angemeldet als: <strong>{{ getCurrentUser() }}</strong></p>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading">
+    ⏳ Lade Konten...
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-message">
+    {{ error }}
+    <button class="btn btn-retry" (click)="loadAccounts()">🔄 Erneut versuchen</button>
+  </div>
+
+  <!-- Accounts List -->
+  <div *ngIf="!loading && !error" class="accounts-container">
+    <div *ngIf="accounts.length === 0" class="no-accounts">
+      📝 Noch keine Konten vorhanden. Erstellen Sie Ihr erstes Konto!
+    </div>
+
+    <div *ngFor="let account of accounts" class="account-item">
+      <div class="account-info">
+        <span class="account-id">ID: {{ account.id }}</span>
+        <span class="account-owner">👤 {{ account.owner }}</span>
+        <span class="account-balance">{{ formatBalance(account.balance) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Account Section -->
+  <div class="form-section">
+    <h3>➕ Neues Konto erstellen</h3>
+    <div class="form-row">
+      <input
+        [(ngModel)]="newAccount.owner"
+        placeholder="Name des Kontoinhabers"
+        class="input-field"
+        [disabled]="createLoading">
+      <input
+        [(ngModel)]="newAccount.balance"
+        placeholder="Startguthaben"
+        type="number"
+        min="0"
+        step="0.01"
+        class="input-field"
+        [disabled]="createLoading">
+      <button
+        (click)="createAccount()"
+        class="btn btn-primary"
+        [disabled]="createLoading || !newAccount.owner.trim()">
+        <span *ngIf="createLoading">⏳</span>
+        <span *ngIf="!createLoading">➕</span>
+        {{ createLoading ? 'Erstelle...' : 'Konto erstellen' }}
+      </button>
+    </div>
+    <div *ngIf="createMessage" class="message" [ngClass]="{'success': createMessage.includes('✅'), 'error': createMessage.includes('❌')}">
+      {{ createMessage }}
+    </div>
+  </div>
+
+  <!-- Transfer Section -->
+  <div class="form-section">
+    <h3>💸 Geld überweisen</h3>
+    <div class="form-row">
+      <input
+        [(ngModel)]="transferData.fromAccountId"
+        placeholder="Von Konto-ID"
+        type="number"
+        class="input-field"
+        [disabled]="transferLoading">
+      <input
+        [(ngModel)]="transferData.toAccountId"
+        placeholder="Zu Konto-ID"
+        type="number"
+        class="input-field"
+        [disabled]="transferLoading">
+      <input
+        [(ngModel)]="transferData.amount"
+        placeholder="Betrag in €"
+        type="number"
+        min="0.01"
+        step="0.01"
+        class="input-field"
+        [disabled]="transferLoading">
+      <button
+        (click)="transfer()"
+        class="btn btn-success"
+        [disabled]="transferLoading || !transferData.fromAccountId || !transferData.toAccountId || !transferData.amount">
+        <span *ngIf="transferLoading">⏳</span>
+        <span *ngIf="!transferLoading">💸</span>
+        {{ transferLoading ? 'Überweise...' : 'Überweisen' }}
+      </button>
+    </div>
+    <div *ngIf="transferMessage" class="message" [ngClass]="{'success': transferMessage.includes('✅'), 'error': transferMessage.includes('❌')}">
+      {{ transferMessage }}
+    </div>
+  </div>
+</div>

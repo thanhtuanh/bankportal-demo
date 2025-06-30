@@ -1,0 +1,84 @@
+services:
+  # PostgreSQL für Auth-Service
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: postgres-auth
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    networks:
+      - bank-network
+
+  # PostgreSQL für Account-Service
+  postgres-account:
+    image: postgres:15-alpine
+    container_name: postgres-account
+    environment:
+      POSTGRES_DB: accountdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5434:5432"
+    volumes:
+      - account_data:/var/lib/postgresql/data
+    networks:
+      - bank-network
+
+  # Auth-Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres-auth
+    networks:
+      - bank-network
+
+  # Account-Service  
+  account-service:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    container_name: account-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
+    ports:
+      - "8082:8081"
+    depends_on:
+      - postgres-account
+    networks:
+      - bank-network
+
+  # Angular Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - auth-service
+      - account-service
+    networks:
+      - bank-network
+
+volumes:
+  auth_data:
+  account_data:
+
+networks:
+  bank-network:
+    driver: bridge

@@ -1,0 +1,55 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2>🏦 Bank Portal - Anmeldung</h2>
+
+    <form (ngSubmit)="onLogin()" #loginForm="ngForm">
+      <div class="form-group">
+        <label for="username">Benutzername:</label>
+        <input
+          type="text"
+          id="username"
+          [(ngModel)]="credentials.username"
+          name="username"
+          placeholder="Benutzername eingeben"
+          required
+          #usernameInput="ngModel">
+        <div *ngIf="usernameInput.invalid && usernameInput.touched" class="error">
+          Benutzername ist erforderlich
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Passwort:</label>
+        <input
+          type="password"
+          id="password"
+          [(ngModel)]="credentials.password"
+          name="password"
+          placeholder="Passwort eingeben"
+          required
+          #passwordInput="ngModel">
+        <div *ngIf="passwordInput.invalid && passwordInput.touched" class="error">
+          Passwort ist erforderlich
+        </div>
+      </div>
+
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+
+      <button
+        type="submit"
+        [disabled]="loginForm.invalid || isLoading"
+        class="btn btn-primary">
+        <span *ngIf="isLoading">⏳ Wird angemeldet...</span>
+        <span *ngIf="!isLoading">🔑 Anmelden</span>
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <p>Noch kein Konto?
+        <a href="#" (click)="goToRegister()">Hier registrieren</a>
+      </p>
+    </div>
+  </div>
+</div>
