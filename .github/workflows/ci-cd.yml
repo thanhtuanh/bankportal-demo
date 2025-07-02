@@ -51,7 +51,7 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: ./package-lock.json
+        cache-dependency-path: frontend/package-lock.json
     
     # Schritt 3: Dependencies installieren (npm ci für reproduzierbare Builds)
     - name: Install dependencies
