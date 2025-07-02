@@ -1,0 +1,465 @@
+# GitHub Actions CI/CD Pipeline für Bank Portal Demo
+# Diese Pipeline automatisiert Build, Test, Security Scanning und Deployment
+name: Bank Portal CI/CD Pipeline
+
+# Workflow Trigger - Definiert wann die Pipeline ausgeführt wird
+on:
+  push:
+    branches: [ main, develop ]  # Pipeline läuft bei Push zu main oder develop
+  pull_request:
+    branches: [ main ]           # Pipeline läuft bei PR gegen main
+  workflow_dispatch:             # Ermöglicht manuelles Triggern der Pipeline
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod                   # Geändert von 'production' zu 'prod'
+
+# Globale Umgebungsvariablen für alle Jobs
+env:
+  REGISTRY: ghcr.io                    # GitHub Container Registry
+  IMAGE_NAME: ${{ github.repository }} # Repository Name für Docker Images
+  NODE_VERSION: '18'                   # Node.js Version für Frontend
+  JAVA_VERSION: '17'                   # Java Version für Backend Services
+
+jobs:
+  # ===================================================================
+  # BUILD & TEST JOBS - Parallele Ausführung für bessere Performance
+  # ===================================================================
+  
+  frontend-build-test:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    # Standardarbeitsverzeichnis für alle Schritte dieses Jobs
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+    # Schritt 1: Repository Code auschecken
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Schritt 2: Node.js Umgebung einrichten mit Caching für bessere Performance
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'                                    # npm cache aktivieren
+        cache-dependency-path: frontend/package-lock.json  # Cache Pfad definieren
+    
+    # Schritt 3: Dependencies installieren (npm ci für reproduzierbare Builds)
+    - name: Install dependencies
+      run: npm ci  # ci statt install für deterministischere Builds
+    
+    # Schritt 4: Code Linting - Überprüfung auf Code-Qualität und Stil
+    - name: Run linting
+      run: npm run lint
+    
+    # Schritt 5: Unit Tests ausführen
+    - name: Run unit tests
+      run: npm run test:ci  # Headless Tests für CI Umgebung
+    
+    # Schritt 6: End-to-End Tests ausführen
+    - name: Run e2e tests
+      run: npm run e2e:ci   # E2E Tests im headless Modus
+    
+    # Schritt 7: Production Build erstellen
+    - name: Build application
+      run: npm run build:prod  # Optimierter Production Build
+    
+    # Schritt 8: Build Artefakte für nachgelagerte Jobs speichern
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-dist        # Name des Artefakts
+        path: frontend/dist/       # Pfad zu den Build-Dateien
+        retention-days: 30         # Artefakte 30 Tage aufbewahren
+
+  auth-service-build-test:
+    name: Auth Service Build & Test
+    runs-on: ubuntu-latest
+    # Arbeitsverzeichnis für Auth Service
+    defaults:
+      run:
+        working-directory: ./auth-service
+    
+    # Service Container für PostgreSQL Test-Datenbank
+    services:
+      postgres:
+        image: postgres:15                      # Konsistent mit docker-compose.yml
+        env:
+          POSTGRES_DB: authdb_test      # Test-Datenbank Name
+          POSTGRES_USER: test           # Test-Benutzer
+          POSTGRES_PASSWORD: test       # Test-Passwort
+        # Health Check Konfiguration für PostgreSQL
+        options: >-
+          --health-cmd pg_isready       # Kommando für Health Check
+          --health-interval 10s         # Check alle 10 Sekunden
+          --health-timeout 5s           # Timeout nach 5 Sekunden
+          --health-retries 5            # Max 5 Wiederholungen
+        ports:
+          - 5432:5432                   # Port Mapping für Tests
+    
+    steps:
+    # Repository Code auschecken
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Java Development Kit einrichten mit Maven Cache
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}  # Java 17
+        distribution: 'temurin'                # Eclipse Temurin Distribution
+        cache: maven                           # Maven Dependencies cachen
+    
+    # Unit und Integration Tests ausführen
+    - name: Run tests
+      run: mvn test
+      env:
+        # Test-Datenbank Konfiguration
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
+        SPRING_DATASOURCE_USERNAME: test
+        SPRING_DATASOURCE_PASSWORD: test
+        # Test JWT Secret (muss lang genug sein für HMAC-SHA256)
+        JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+    
+    # Application JAR erstellen (Tests überspringen da bereits ausgeführt)
+    - name: Build application
+      run: mvn clean package -DskipTests
+    
+    # JAR Artefakt für Docker Build speichern
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: auth-service-jar
+        path: auth-service/target/*.jar  # Alle JAR Dateien aus target/
+        retention-days: 30
+
+  account-service-build-test:
+    name: Account Service Build & Test
+    runs-on: ubuntu-latest
+    # Arbeitsverzeichnis für Account Service
+    defaults:
+      run:
+        working-directory: ./account-service
+    
+    # Separate PostgreSQL Instanz für Account Service Tests
+    services:
+      postgres:
+        image: postgres:15                      # Konsistent mit docker-compose.yml
+        env:
+          POSTGRES_DB: accountdb_test   # Separate Test-DB für Account Service
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432                   # Anderen Port verwenden um Konflikt zu vermeiden
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+    
+    # Tests mit separater DB Konfiguration
+    - name: Run tests
+      run: mvn test
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
+        SPRING_DATASOURCE_USERNAME: test
+        SPRING_DATASOURCE_PASSWORD: test
+        JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+    
+    - name: Build application
+      run: mvn clean package -DskipTests
+    
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: account-service-jar
+        path: account-service/target/*.jar
+        retention-days: 30
+
+  # ===================================================================
+  # SECURITY & QUALITY CHECKS - Laufen nach erfolgreichen Build Jobs
+  # ===================================================================
+  
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    # Dieser Job wartet auf erfolgreiche Completion aller Build Jobs
+    needs: [frontend-build-test, auth-service-build-test, account-service-build-test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Trivy Vulnerability Scanner - Scannt das gesamte Repository
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'                    # Filesystem Scan
+        scan-ref: '.'                      # Aktuelles Verzeichnis scannen
+        format: 'sarif'                    # SARIF Format für GitHub Integration
+        output: 'trivy-results.sarif'      # Output Datei
+    
+    # Scan Ergebnisse zu GitHub Security Tab hochladen
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    # NPM Security Audit für Frontend Dependencies
+    - name: Frontend Security Audit
+      working-directory: ./frontend
+      run: |
+        npm ci                            # Dependencies installieren
+        npm audit --audit-level high      # Nur high severity vulnerabilities
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: [frontend-build-test, auth-service-build-test, account-service-build-test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0                    # Komplette Git History für SonarCloud
+    
+    # JDK für SonarCloud Setup
+    - name: Setup JDK for SonarCloud
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+    
+    # SonarCloud Cache für bessere Performance
+    - name: Cache SonarCloud packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+    
+    # SonarCloud Analyse ausführen
+    - name: SonarCloud Scan
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Für PR Decorations
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}    # SonarCloud Authentifizierung
+      run: |
+        mvn sonar:sonar \
+          -Dsonar.projectKey=${{ github.repository_owner }}_bankportal-demo \
+          -Dsonar.organization=${{ github.repository_owner }} \
+          -Dsonar.host.url=https://sonarcloud.io
+
+  # ===================================================================
+  # DOCKER BUILD JOBS - Parallele Erstellung aller Service Images
+  # ===================================================================
+  
+  build-docker-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [frontend-build-test, auth-service-build-test, account-service-build-test]
+    # Nur bei Push Events, nicht bei Pull Requests
+    if: github.event_name != 'pull_request'
+    
+    # Matrix Strategy für parallele Image Builds
+    strategy:
+      matrix:
+        service: [frontend, auth-service, account-service]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Entsprechende Build Artefakte herunterladen
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        # Dynamische Artefakt-Namen basierend auf Service
+        name: ${{ matrix.service == 'frontend' && 'frontend-dist' || format('{0}-jar', matrix.service) }}
+        path: ./artifacts/
+    
+    # Docker Buildx für erweiterte Build Features
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    # Anmeldung an GitHub Container Registry
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}        # GitHub Username
+        password: ${{ secrets.GITHUB_TOKEN }} # Automatisches GitHub Token
+    
+    # Metadata für Docker Tags und Labels extrahieren
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}
+        # Tag Strategy: Branch Name, PR Number, SHA, Latest für main branch
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    # Docker Image build und push
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./${{ matrix.service }}      # Build Context pro Service
+        push: true                            # Image nach Registry pushen
+        tags: ${{ steps.meta.outputs.tags }}  # Tags aus Metadata
+        labels: ${{ steps.meta.outputs.labels }} # Labels aus Metadata
+        cache-from: type=gha                  # GitHub Actions Cache verwenden
+        cache-to: type=gha,mode=max           # Cache für nachfolgende Builds
+
+  # ===================================================================
+  # DEPLOYMENT JOBS - Environment-spezifische Deployments
+  # ===================================================================
+  
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    # Wartet auf Docker Images, Security Scan und Code Quality
+    needs: [build-docker-images, security-scan, code-quality]
+    # Deployment Bedingungen: develop branch oder manual trigger für dev
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+    # WICHTIG: Entfernt bis GitHub Environment konfiguriert ist
+    # environment: development              # GitHub Environment für Approval Gates
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # kubectl für Kubernetes Deployments installieren
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    # Kubernetes Cluster Konfiguration einrichten
+    - name: Configure kubectl
+      run: |
+        # Base64 dekodierte kubeconfig aus GitHub Secret
+        echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    # Deployment zu Kubernetes ausführen
+    - name: Deploy to Kubernetes
+      run: |
+        export KUBECONFIG=kubeconfig
+        # Environment Variables in Deployment YAML substituieren und anwenden
+        envsubst < k8s/dev/deployment.yaml | kubectl apply -f -
+        # Warten bis Rollout abgeschlossen ist
+        kubectl rollout status deployment/bankportal-frontend -n bankportal-dev
+        kubectl rollout status deployment/bankportal-auth-service -n bankportal-dev
+        kubectl rollout status deployment/bankportal-account-service -n bankportal-dev
+      env:
+        IMAGE_TAG: ${{ github.sha }}      # Git SHA als Image Tag verwenden
+        ENVIRONMENT: dev
+    
+    # Health Checks nach Deployment
+    - name: Run health checks
+      run: |
+        export KUBECONFIG=kubeconfig
+        # Warten bis alle Pods ready sind (max 5 Minuten)
+        kubectl wait --for=condition=ready pod -l app=bankportal-frontend -n bankportal-dev --timeout=300s
+        kubectl wait --for=condition=ready pod -l app=bankportal-auth-service -n bankportal-dev --timeout=300s
+        kubectl wait --for=condition=ready pod -l app=bankportal-account-service -n bankportal-dev --timeout=300s
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-docker-images, security-scan, code-quality]
+    # Staging Deployment nur bei main branch oder manual trigger
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    # WICHTIG: Entfernt bis GitHub Environment konfiguriert ist
+    # environment: staging                  # Staging Environment für Approvals
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Placeholder für Staging Deployment Logic
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Hier würde die tatsächliche Staging Deployment Logic stehen
+        # z.B. Helm Charts, Terraform, oder ähnliche Tools
+    
+    # Integration Tests gegen Staging Environment
+    - name: Run integration tests
+      run: |
+        echo "Running integration tests against staging..."
+        # Hier würden umfassende Integration Tests ausgeführt
+        # z.B. Newman (Postman), Cypress E2E Tests, etc.
+    
+    # Team Benachrichtigung über Slack
+    - name: Notify team
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Bank Portal deployed to staging successfully! 🚀'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]               # Abhängig von erfolgreichem Staging Deployment
+    # Production nur bei manual trigger und main branch
+    if: github.ref == 'refs/heads/main' && github.event.inputs.environment == 'prod'
+    # WICHTIG: Entfernt bis GitHub Environment konfiguriert ist
+    # environment: production               # Production Environment mit manueller Approval
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # GitHub Release erstellen für Production Deployments
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}     # Release Version basierend auf Run Number
+        release_name: Release v${{ github.run_number }}
+        draft: false
+        prerelease: false
+    
+    # Production Deployment
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Hier würde das Production Deployment implementiert
+        # Typischerweise mit Blue-Green oder Canary Deployment Strategy
+    
+    # Success Notification für Production Deployment
+    - name: Notify team
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Bank Portal v${{ github.run_number }} deployed to production! 🎉'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

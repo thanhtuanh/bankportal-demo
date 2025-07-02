@@ -1,0 +1,290 @@
+# =============================================================================
+# NAMESPACE
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bankportal-dev
+  labels:
+    environment: development
+    project: bankportal
+
+---
+
+# =============================================================================
+# SECRETS
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: bankportal-dev
+type: Opaque
+data:
+  password: cGFzc3dvcmQxMjM=  # 'password123'
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-secret
+  namespace: bankportal-dev
+type: Opaque
+data:
+  secret: bXlzZWNyZXRrZXltdnNlY3JldGtleW15c2VjcmV0a2V5MTIzNDU2
+
+---
+
+# =============================================================================
+# ACCOUNT SERVICE DEPLOYMENT
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bankportal-account-service
+  namespace: bankportal-dev
+  labels:
+    app: bankportal-account-service
+    tier: backend
+    service: account
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bankportal-account-service
+  template:
+    metadata:
+      labels:
+        app: bankportal-account-service
+        tier: backend
+        service: account
+    spec:
+      containers:
+      - name: account-service
+        image: ghcr.io/thanhtuanh/bankportal-demo-account-service:latest
+        ports:
+        - containerPort: 8082
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-auth-service:5432/accountdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "admin"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8082
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      # Pull Secrets falls privat
+      # imagePullSecrets:
+      # - name: ghcr-secret
+
+---
+
+# =============================================================================
+# FRONTEND DEPLOYMENT
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bankportal-frontend
+  namespace: bankportal-dev
+  labels:
+    app: bankportal-frontend
+    tier: frontend
+    component: webapp
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: bankportal-frontend
+  template:
+    metadata:
+      labels:
+        app: bankportal-frontend
+        tier: frontend
+        component: webapp
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+        prometheus.io/path: "/"
+    spec:
+      securityContext:
+        fsGroup: 101
+        runAsNonRoot: true
+        runAsUser: 101
+      containers:
+      - name: frontend
+        image: ghcr.io/thanhtuanh/bankportal-demo-frontend:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 101
+          capabilities:
+            drop:
+              - ALL
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "development"
+        - name: NODE_ENV
+          value: "development"
+        - name: API_BASE_URL
+          value: "/api"
+        - name: AUTH_SERVICE_URL
+          value: "http://bankportal-auth-service:8081"
+        - name: ACCOUNT_SERVICE_URL
+          value: "http://bankportal-account-service:8082"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-run
+          mountPath: /var/run
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+            httpHeaders:
+            - name: Host
+              value: localhost
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+            httpHeaders:
+            - name: Host
+              value: localhost
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+
+---
+
+# =============================================================================
+# SERVICES
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: bankportal-account-service
+  namespace: bankportal-dev
+spec:
+  selector:
+    app: bankportal-account-service
+  ports:
+  - port: 8082
+    targetPort: http
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: bankportal-frontend-service
+  namespace: bankportal-dev
+spec:
+  selector:
+    app: bankportal-frontend
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  type: LoadBalancer
+
+---
+
+# =============================================================================
+# HPA für Frontend
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: bankportal-frontend-hpa
+  namespace: bankportal-dev
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bankportal-frontend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

@@ -13,6 +13,11 @@ services:
       - auth_data:/var/lib/postgresql/data
     networks:
       - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d authdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # PostgreSQL für Account-Service
   postgres-account:
@@ -28,6 +33,11 @@ services:
       - account_data:/var/lib/postgresql/data
     networks:
       - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d accountdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Auth-Service
   auth-service:
@@ -37,15 +47,26 @@ services:
     container_name: auth-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-auth:5432/authdb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
       - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
     ports:
       - "8081:8081"
     depends_on:
-      - postgres-auth
+      postgres-auth:
+        condition: service_healthy
     networks:
       - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 45s
+      timeout: 15s
+      retries: 8
+      start_period: 120s
+    restart: unless-stopped
 
-  # Account-Service  
+  # Account-Service
   account-service:
     build:
       context: ./account-service
@@ -53,13 +74,24 @@ services:
     container_name: account-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-account:5432/accountdb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
       - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
     ports:
-      - "8082:8081"
+      - "8082:8082"
     depends_on:
-      - postgres-account
+      postgres-account:
+        condition: service_healthy
     networks:
       - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 45s
+      timeout: 15s
+      retries: 8
+      start_period: 120s
+    restart: unless-stopped
 
   # Angular Frontend
   frontend:
@@ -74,6 +106,13 @@ services:
       - account-service
     networks:
       - bank-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   auth_data:

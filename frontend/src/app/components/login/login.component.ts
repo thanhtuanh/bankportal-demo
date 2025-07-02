@@ -297,11 +297,11 @@ import { LoginRequest } from '../../models/auth';
   `]
 })
 export class LoginComponent {
-  username: string = '';
-  password: string = '';
-  errorMessage: string = '';
-  successMessage: string = '';
-  isLoading: boolean = false;
+  username = '';
+  password = '';
+  errorMessage = '';
+  successMessage = '';
+  isLoading = false;
 
   constructor(
     private authService: AuthService,
@@ -320,7 +320,7 @@ export class LoginComponent {
       };
 
       this.authService.login(credentials).subscribe({
-        next: (response) => {
+        next: () => {
           console.log('✅ Login successful');
           this.isLoading = false;
           this.successMessage = 'Anmeldung erfolgreich! Weiterleitung...';

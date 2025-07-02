@@ -36,7 +36,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+                        // Actuator Endpoints erlauben (für Health Checks)
+                        .requestMatchers("/actuator/**").permitAll()
+                        // API Endpoints benötigen Authentifizierung
                         .requestMatchers("/api/accounts/**").authenticated()
+                        // Alle anderen Requests erlauben
                         .anyRequest().permitAll())
                 .addFilterBefore(new JwtAuthFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -62,6 +66,12 @@ public class SecurityConfig {
                 HttpServletResponse response,
                 FilterChain chain)
                 throws ServletException, IOException {
+
+            // Actuator Endpoints überspringen (keine JWT-Validierung)
+            if (request.getRequestURI().startsWith("/actuator/")) {
+                chain.doFilter(request, response);
+                return;
+            }
 
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
