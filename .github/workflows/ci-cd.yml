@@ -51,7 +51,7 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'                                    # npm cache aktivieren
-        cache-dependency-path: frontend/package-lock.json  # Cache Pfad definieren
+        cache-dependency-path: ./package-lock.json  # Cache Pfad definieren
     
     # Schritt 3: Dependencies installieren (npm ci für reproduzierbare Builds)
     - name: Install dependencies
@@ -99,10 +99,10 @@ jobs:
           POSTGRES_PASSWORD: test       # Test-Passwort
         # Health Check Konfiguration für PostgreSQL
         options: >-
-          --health-cmd pg_isready       # Kommando für Health Check
-          --health-interval 10s         # Check alle 10 Sekunden
-          --health-timeout 5s           # Timeout nach 5 Sekunden
-          --health-retries 5            # Max 5 Wiederholungen
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 5432:5432                   # Port Mapping für Tests
     
