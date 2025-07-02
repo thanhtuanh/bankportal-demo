@@ -31,8 +31,12 @@
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3"
   },
-    "devDependencies": {
+  "devDependencies": {
     "@angular-devkit/build-angular": "^18.2.0",
+    "@angular-eslint/builder": "^20.1.1",
+    "@angular-eslint/eslint-plugin": "^20.1.1",
+    "@angular-eslint/eslint-plugin-template": "^20.1.1",
+    "@angular-eslint/template-parser": "^20.1.1",
     "@angular/cli": "^18.2.0",
     "@angular/compiler-cli": "^18.2.0",
     "@types/node": "^18.18.0",

@@ -42,7 +42,7 @@ frontend/.angular/cache/
 frontend/.env
 
 # Optional: Lockfiles
-frontend/package-lock.json
+#frontend/package-lock.json
 frontend/yarn.lock
 
 # === Docker ===
