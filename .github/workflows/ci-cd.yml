@@ -50,12 +50,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'                                    # npm cache aktivieren
-        cache-dependency-path: ./package-lock.json  # Cache Pfad definieren
+        cache: 'npm'
+        cache-dependency-path: ./package-lock.json
     
     # Schritt 3: Dependencies installieren (npm ci für reproduzierbare Builds)
     - name: Install dependencies
-      run: npm ci  # ci statt install für deterministischere Builds
+      run: npm ci
     
     # Schritt 4: Code Linting - Überprüfung auf Code-Qualität und Stil
     - name: Run linting
