@@ -26,17 +26,17 @@ Die Anwendung ist in einer **modernen Mikroservice-Architektur** aufgebaut, die 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │                 │     │                 │     │                 │
-│   Angular SPA   │────►│   Auth Service  │     │ Account Service │
+│   Angular SPA   │────►│   Auth Service  │────►│ Account Service │
 │   (Port 4200)   │     │   (Port 8081)   │     │   (Port 8082)   │
 │                 │     │                 │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
-                              │                       │
-                              ▼                       ▼
-                      ┌─────────────────┐     ┌─────────────────┐
-                      │   PostgreSQL    │     │   PostgreSQL    │
-                      │   (Auth DB)     │     │ (Account DB)    │
-                      │   Port 5432     │     │ Port 5433       │
-                      └─────────────────┘     └─────────────────┘
+                               │                       │
+                               ▼                       ▼
+                        ┌─────────────────┐     ┌─────────────────┐
+                        │   PostgreSQL    │     │   PostgreSQL    │
+                        │   (Auth DB)     │     │ (Account DB)    │
+                        │   Port 5432     │     │ Port 5433       │
+                        └─────────────────┘     └─────────────────┘
 ```
 
 ### Services & Verantwortlichkeiten:
