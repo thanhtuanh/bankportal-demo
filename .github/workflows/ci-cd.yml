@@ -121,7 +121,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+          JWT_SECRET: testsecretkeytestsecretkey123456
       - run: mvn clean package -DskipTests
       - uses: actions/upload-artifact@v4
         with:
@@ -129,127 +129,123 @@ jobs:
           path: account-service/target/*.jar
           retention-days: 30
 
-  # Fixed SonarQube Job - analyzing each service separately
- # Replace the existing sonar-auth-service job with this:
-  sonar-auth-service:
-    name: SonarQube Analysis - Auth Service
+  # SonarQube jobs temporarily disabled - uncomment after creating projects in SonarCloud
+  # sonar-auth-service:
+  #   name: SonarQube Analysis - Auth Service
+  #   runs-on: ubuntu-latest
+  #   needs: [auth-service-build-test]
+  #   # ... rest of the sonar configuration
+
+  # sonar-account-service:
+  #   name: SonarQube Analysis - Account Service
+  #   runs-on: ubuntu-latest
+  #   needs: [account-service-build-test]
+  #   # ... rest of the sonar configuration
+
+  # Docker Build und Push zu GHCR
+  docker-build-push:
+    name: Docker Build & Push
     runs-on: ubuntu-latest
-    needs: [auth-service-build-test]
-    defaults:
-      run:
-        working-directory: ./auth-service
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: authdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    needs: [auth-service-build-test, account-service-build-test, frontend-build-test]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Bei GitHub Container Registry anmelden
+        uses: docker/login-action@v3
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for better relevance of analysis
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Docker Buildx einrichten
+        uses: docker/setup-buildx-action@v3
+
+      - name: Auth Service Artifacts herunterladen
+        uses: actions/download-artifact@v4
         with:
-          java-version: 17
-          distribution: 'temurin'
+          name: auth-service-jar
+          path: ./auth-service/target/
 
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
+      - name: Account Service Artifacts herunterladen
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+          name: account-service-jar
+          path: ./account-service/target/
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
+      - name: Frontend Artifacts herunterladen
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          name: frontend-dist
+          path: ./frontend/dist/
 
-      - name: Build and analyze Auth Service
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
-        run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
-            -Dsonar.projectName="Bank Portal Auth Service" \
-            -Dsonar.organization=thanhtuanh \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.newCode.referenceBranch=main
-
-  # Replace the existing sonar-account-service job with this:
-  sonar-account-service:
-    name: SonarQube Analysis - Account Service
-    runs-on: ubuntu-latest
-    needs: [account-service-build-test]
-    defaults:
-      run:
-        working-directory: ./account-service
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: accountdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
-    steps:
-      - uses: actions/checkout@v4
+      - name: Metadaten für Auth Service extrahieren
+        id: meta-auth
+        uses: docker/metadata-action@v5
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for better relevance of analysis
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-auth-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Auth Service Docker Image bauen und pushen
+        uses: docker/build-push-action@v5
         with:
-          java-version: 17
-          distribution: 'temurin'
+          context: ./auth-service
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-auth.outputs.tags }}
+          labels: ${{ steps.meta-auth.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
+      - name: Metadaten für Account Service extrahieren
+        id: meta-account
+        uses: docker/metadata-action@v5
         with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-account-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
+      - name: Account Service Docker Image bauen und pushen
+        uses: docker/build-push-action@v5
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          context: ./account-service
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-account.outputs.tags }}
+          labels: ${{ steps.meta-account.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Build and analyze Account Service
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkey123456
-        run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
-            -Dsonar.projectName="Bank Portal Account Service" \
-            -Dsonar.organization=thanhtuanh \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.newCode.referenceBranch=main
+      - name: Metadaten für Frontend extrahieren
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
+
+      - name: Frontend Docker Image bauen und pushen
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+    # TODO: SonarQube temporarily disabled - re-enable after creating projects in SonarCloud
