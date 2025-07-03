@@ -219,11 +219,11 @@ jobs:
         format: 'sarif'                    # SARIF Format für GitHub Integration
         output: 'trivy-results.sarif'      # Output Datei
     
-    # Scan Ergebnisse zu GitHub Security Tab hochladen
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: 'trivy-results.sarif'
+    # Scan Ergebnisse zu GitHub Security Tab hochladen ()
+    #- name: Upload Trivy scan results
+    #  uses: github/codeql-action/upload-sarif@v3
+    #  with:
+    #    sarif_file: 'trivy-results.sarif'
     
     # NPM Security Audit für Frontend Dependencies
     - name: Frontend Security Audit
