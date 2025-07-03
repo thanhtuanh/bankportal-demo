@@ -168,7 +168,7 @@ jobs:
 
     # TODO: GHCR Push vorerst deaktiviert bis Package Permission gesetzt ist
     # - name: Build and push Docker image
-    #   uses: docker/build-push-action@v5
+    #   uses: docker/build-push-action@v5 
     #   with:
     #     context: ./auth-service
     #     push: true
