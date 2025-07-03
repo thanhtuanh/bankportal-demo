@@ -246,4 +246,4 @@ jobs:
     #   with:
     #     context: ./auth-service
     #     push: true
-    #     tags: ghcr.io/thanhtuanh/bankportal-demo-auth-service:latest
+    #     tags: ghcr.io/thanhtuanh/bankportal-demo-auth-service:latest 
