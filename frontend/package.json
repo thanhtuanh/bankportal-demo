@@ -46,6 +46,7 @@
     "@typescript-eslint/eslint-plugin": "^8.35.0",
     "@typescript-eslint/parser": "^8.35.0",
     "@typescript-eslint/utils": "^8.35.0",
+    "cypress": "latest",
     "eslint": "^8.57.0",
     "jasmine-core": "^5.8.0",
     "karma": "^6.4.4",
@@ -54,6 +55,6 @@
     "karma-jasmine": "^5.1.0",
     "karma-jasmine-html-reporter": "^2.1.0",
     "typescript": "~5.4.0",
-    "cypress": "latest"
+    "wait-on": "^8.0.3"
   }
 }
