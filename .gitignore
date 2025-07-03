@@ -63,7 +63,7 @@ docker-compose.override.yml
 coverage/
 *.out
 *.test.js
-*.spec.ts
+
 test-results/
 
 # === Windows / System ===
