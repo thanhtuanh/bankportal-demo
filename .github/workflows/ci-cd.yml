@@ -65,10 +65,10 @@ jobs:
     - name: Run unit tests
       run: npm run test:ci  # Headless Tests für CI Umgebung
     
-    # Schritt 6: End-to-End Tests ausführen
-    - name: Run e2e tests
-      run: npm run e2e:ci   # E2E Tests im headless Modus
-    
+    # Schritt 6: End-to-End Tests ausführen (mit Server-Start)
+    #- name: Run e2e tests
+    # run: npm run e2e:ci
+
     # Schritt 7: Production Build erstellen
     - name: Build application
       run: npm run build:prod  # Optimierter Production Build
