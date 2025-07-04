@@ -1,0 +1,98 @@
+# postgres-account.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-account
+  namespace: bankportal
+  labels:
+    app: postgres-account
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-account
+  template:
+    metadata:
+      labels:
+        app: postgres-account
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "accountdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: bankportal-secrets
+              key: db-username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: bankportal-secrets
+              key: db-password
+        volumeMounts:
+        - name: postgres-account-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - admin
+            - -d
+            - accountdb
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - admin
+            - -d
+            - accountdb
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-account-storage
+        persistentVolumeClaim:
+          claimName: postgres-account-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-account-service
+  namespace: bankportal
+spec:
+  selector:
+    app: postgres-account
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-account-pvc
+  namespace: bankportal
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard

@@ -1,99 +1,75 @@
+# docker-compose.yml - BLEIBT für lokale Entwicklung
+
 services:
-  # PostgreSQL für Auth-Service
+  # PostgreSQL für Auth Service
   postgres-auth:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: postgres-auth
     environment:
       POSTGRES_DB: authdb
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
-      - auth_data:/var/lib/postgresql/data
+      - postgres_auth_data:/var/lib/postgresql/data
     networks:
-      - bank-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d authdb"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - bankportal-network
 
-  # PostgreSQL für Account-Service
+  # PostgreSQL für Account Service  
   postgres-account:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: postgres-account
     environment:
       POSTGRES_DB: accountdb
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     ports:
-      - "5434:5432"
+      - "5433:5432"
     volumes:
-      - account_data:/var/lib/postgresql/data
+      - postgres_account_data:/var/lib/postgresql/data
     networks:
-      - bank-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d accountdb"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - bankportal-network
 
-  # Auth-Service
+  # Auth Service
   auth-service:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
     container_name: auth-service
+    ports:
+      - "8081:8081"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-auth:5432/authdb
       - SPRING_DATASOURCE_USERNAME=admin
       - SPRING_DATASOURCE_PASSWORD=admin
       - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
-    ports:
-      - "8081:8081"
+      - SPRING_PROFILES_ACTIVE=development
     depends_on:
-      postgres-auth:
-        condition: service_healthy
+      - postgres-auth
     networks:
-      - bank-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
-      interval: 45s
-      timeout: 15s
-      retries: 8
-      start_period: 120s
-    restart: unless-stopped
+      - bankportal-network
 
-  # Account-Service
+  # Account Service
   account-service:
     build:
       context: ./account-service
       dockerfile: Dockerfile
     container_name: account-service
+    ports:
+      - "8082:8082"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-account:5432/accountdb
       - SPRING_DATASOURCE_USERNAME=admin
       - SPRING_DATASOURCE_PASSWORD=admin
       - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
-    ports:
-      - "8082:8082"
+      - SPRING_PROFILES_ACTIVE=development
     depends_on:
-      postgres-account:
-        condition: service_healthy
+      - postgres-account
     networks:
-      - bank-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
-      interval: 45s
-      timeout: 15s
-      retries: 8
-      start_period: 120s
-    restart: unless-stopped
+      - bankportal-network
 
-  # Angular Frontend
+  # Frontend
   frontend:
     build:
       context: ./frontend
@@ -105,19 +81,12 @@ services:
       - auth-service
       - account-service
     networks:
-      - bank-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:80/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - bankportal-network
 
 volumes:
-  auth_data:
-  account_data:
+  postgres_auth_data:
+  postgres_account_data:
 
 networks:
-  bank-network:
+  bankportal-network:
     driver: bridge
