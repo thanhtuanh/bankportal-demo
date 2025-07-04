@@ -129,7 +129,6 @@ jobs:
           path: account-service/target/*.jar
           retention-days: 30
 
-  # SonarQube Analysis - Auth Service
   sonar-auth-service:
     name: SonarQube Analysis - Auth Service
     runs-on: ubuntu-latest
@@ -154,28 +153,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for better relevance of analysis
-
+          fetch-depth: 0
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: 'temurin'
-
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-
       - name: Build and analyze Auth Service
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -190,7 +185,6 @@ jobs:
             -Dsonar.organization=thanhtuanh \
             -Dsonar.host.url=https://sonarcloud.io
 
-  # SonarQube Analysis - Account Service
   sonar-account-service:
     name: SonarQube Analysis - Account Service
     runs-on: ubuntu-latest
@@ -215,28 +209,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for better relevance of analysis
-
+          fetch-depth: 0
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: 'temurin'
-
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-
       - name: Build and analyze Account Service
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -251,7 +241,6 @@ jobs:
             -Dsonar.organization=thanhtuanh \
             -Dsonar.host.url=https://sonarcloud.io
 
-  # Docker Build und Push zu GHCR
   docker-build-push:
     name: Docker Build & Push
     runs-on: ubuntu-latest
@@ -318,250 +307,6 @@ jobs:
           # cache-from: type=gha
           # cache-to: type=gha,mode=max
 
-  # Report Generation Job
-  generate-report:
-    name: Generate Build Report
-    runs-on: ubuntu-latest
-    needs: [frontend-build-test, auth-service-build-test, account-service-build-test, sonar-auth-service, sonar-account-service, docker-build-push]
-    if: always()  # Läuft auch bei Fehlern
-    steps:
-      - name: Generate Summary Report
-        run: |
-          echo "# 🚀 Bank Portal CI/CD Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📊 Build Status" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.frontend-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Auth Service | ${{ needs.auth-service-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Account Service | ${{ needs.account-service-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| SonarQube Auth | ${{ needs.sonar-auth-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| SonarQube Account | ${{ needs.sonar-account-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build & Push | ${{ needs.docker-build-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [SonarCloud Auth Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
-          echo "- [SonarCloud Account Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-account-service)" >> $GITHUB_STEP_SUMMARY
-          echo "- [GitHub Container Registry](https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📈 Pipeline Metriken" >> $GITHUB_STEP_SUMMARY
-          echo "- **Repository:** \`${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Built at:** $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🎯 Nächste Schritte" >> $GITHUB_STEP_SUMMARY
-          echo "- [ ] Code-Qualität in SonarCloud überprüfen" >> $GITHUB_STEP_SUMMARY
-          echo "- [ ] Docker Images in GHCR kontrollieren" >> $GITHUB_STEP_SUMMARY
-          echo "- [ ] Deployment planen" >> $GITHUB_STEP_SUMMARY
-
-  # Update README Dashboard
-  update-readme:
-    name: Update README Dashboard
-    runs-on: ubuntu-latest
-    needs: [generate-report]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
-          
-      - name: Update README Status
-        run: |
-          # Backup existing README if it exists
-          if [ -f README.md ]; then
-            cp README.md README.backup.md
-          fi
-          
-          # Create/Update README with status dashboard
-          cat > README.md << 'EOF'
-          # 🏦 Bank Portal Demo
-          
-          ![CI/CD Pipeline](https://github.com/${{ github.repository }}/workflows/Bank%20Portal%20CI%2FCD%20Pipeline/badge.svg)
-          ![Last Commit](https://img.shields.io/github/last-commit/${{ github.repository }})
-          ![Repo Size](https://img.shields.io/github/repo-size/${{ github.repository }})
-          
-          ## 📊 Aktueller Pipeline Status
-          
-          | Service | Build Status | Last Updated |
-          |---------|-------------|--------------|
-          | 🔐 Auth Service | ✅ Build erfolgreich | ${{ github.event.head_commit.timestamp }} |
-          | 💰 Account Service | ✅ Build erfolgreich | ${{ github.event.head_commit.timestamp }} |
-          | 🌐 Frontend | ✅ Build erfolgreich | ${{ github.event.head_commit.timestamp }} |
-          | 🔍 SonarQube Analysis | ✅ Completed | ${{ github.event.head_commit.timestamp }} |
-          | 🐳 Docker Images | ✅ Pushed to GHCR | ${{ github.event.head_commit.timestamp }} |
-          
-          ## 🚀 Quick Links
-          
-          - **🔍 Code-Qualität:** [SonarCloud Dashboard](https://sonarcloud.io/organizations/thanhtuanh/projects)
-          - **🐳 Container Images:** [GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs)
-          - **📋 CI/CD Pipeline:** [GitHub Actions](https://github.com/${{ github.repository }}/actions)
-          - **📊 Pipeline Reports:** [Latest Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
-          ## 🏗️ Architektur
-          
-          ```
-          ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-          │   Frontend  │───▶│ Auth Service │───▶│ PostgreSQL  │
-          │   (React)   │    │(Spring Boot) │    │ Database    │
-          └─────────────┘    └──────────────┘    └─────────────┘
-                                     │
-                                     ▼
-                             ┌──────────────┐    ┌─────────────┐
-                             │Account Service│───▶│ PostgreSQL  │
-                             │(Spring Boot) │    │ Database    │
-                             └──────────────┘    └─────────────┘
-          ```
-          
-          ## 📈 Letzte Aktivität
-          
-          - **Letzter Commit:** `${{ github.sha }}`
-          - **Branch:** `${{ github.ref_name }}`
-          - **Commit Message:** "${{ github.event.head_commit.message }}"
-          - **Author:** ${{ github.event.head_commit.author.name }}
-          - **Build Zeit:** $(date '+%d.%m.%Y %H:%M:%S')
-          
-          ## 🛠️ Technologie Stack
-          
-          | Komponente | Technologie | Version |
-          |------------|-------------|---------|
-          | Frontend | React + TypeScript | 18.x |
-          | Backend | Spring Boot | 3.x |
-          | Database | PostgreSQL | 15.x |
-          | Build Tool | Maven | 3.x |
-          | Java | OpenJDK | 17 |
-          | Code Quality | SonarCloud | Latest |
-          | CI/CD | GitHub Actions | Latest |
-          | Container | Docker + GHCR | Latest |
-          
-          ## 🎯 Entwicklungsstatus
-          
-          - ✅ **CI/CD Pipeline** - Vollständig implementiert
-          - ✅ **Automatische Tests** - Frontend + Backend
-          - ✅ **Code-Qualitätsprüfung** - SonarCloud integriert
-          - ✅ **Container Deployment** - Docker Images in GHCR
-          - ⏳ **E2E Tests** - Geplant
-          - ⏳ **Monitoring** - In Vorbereitung
-          - ⏳ **Production Deployment** - Nächste Phase
-          
-          ---
-          *🤖 Automatisch aktualisiert durch GitHub Actions - $(date '+%d.%m.%Y %H:%M:%S')*
-          EOF
-          
-      - name: Commit README
-        run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add README.md
-          if git diff --staged --quiet; then
-            echo "Keine Änderungen in README.md"
-          else
-            git commit -m "📊 Update README dashboard [skip ci]" || echo "Commit fehlgeschlagen - möglicherweise keine Änderungen"
-            git push || echo "Push fehlgeschlagen - möglicherweise Berechtigungsproblem"
-          fi
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Verwende GITHUB_TOKEN mit erweiterten Permissions
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
-          
-      - name: Update README Status
-        run: |
-          # Backup existing README if it exists
-          if [ -f README.md ]; then
-            cp README.md README.backup.md
-          fi
-          
-          # Create/Update README with status dashboard
-          cat > README.md << 'EOF'
-          # 🏦 Bank Portal Demo
-          
-          ![CI/CD Pipeline](https://github.com/${{ github.repository }}/workflows/Bank%20Portal%20CI%2FCD%20Pipeline/badge.svg)
-          ![Last Commit](https://img.shields.io/github/last-commit/${{ github.repository }})
-          ![Repo Size](https://img.shields.io/github/repo-size/${{ github.repository }})
-          
-          ## 📊 Aktueller Pipeline Status
-          
-          | Service | Build Status | Last Updated |
-          |---------|-------------|--------------|
-          | 🔐 Auth Service | ✅ Build erfolgreich | ${{ github.event.head_commit.timestamp }} |
-          | 💰 Account Service | ✅ Build erfolgreich | ${{ github.event.head_commit.timestamp }} |
-          | 🌐 Frontend | ✅ Build erfolgreich | ${{ github.event.head_commit.timestamp }} |
-          | 🔍 SonarQube Analysis | ✅ Completed | ${{ github.event.head_commit.timestamp }} |
-          | 🐳 Docker Images | ✅ Pushed to GHCR | ${{ github.event.head_commit.timestamp }} |
-          
-          ## 🚀 Quick Links
-          
-          - **🔍 Code-Qualität:** [SonarCloud Dashboard](https://sonarcloud.io/organizations/thanhtuanh/projects)
-          - **🐳 Container Images:** [GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs)
-          - **📋 CI/CD Pipeline:** [GitHub Actions](https://github.com/${{ github.repository }}/actions)
-          - **📊 Pipeline Reports:** [Latest Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
-          ## 🏗️ Architektur
-          
-          ```
-          ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-          │   Frontend  │───▶│ Auth Service │───▶│ PostgreSQL  │
-          │   (React)   │    │(Spring Boot) │    │ Database    │
-          └─────────────┘    └──────────────┘    └─────────────┘
-                                     │
-                                     ▼
-                             ┌──────────────┐    ┌─────────────┐
-                             │Account Service│───▶│ PostgreSQL  │
-                             │(Spring Boot) │    │ Database    │
-                             └──────────────┘    └─────────────┘
-          ```
-          
-          ## 📈 Letzte Aktivität
-          
-          - **Letzter Commit:** `${{ github.sha }}`
-          - **Branch:** `${{ github.ref_name }}`
-          - **Commit Message:** "${{ github.event.head_commit.message }}"
-          - **Author:** ${{ github.event.head_commit.author.name }}
-          - **Build Zeit:** $(date '+%d.%m.%Y %H:%M:%S')
-          
-          ## 🛠️ Technologie Stack
-          
-          | Komponente | Technologie | Version |
-          |------------|-------------|---------|
-          | Frontend | React + TypeScript | 18.x |
-          | Backend | Spring Boot | 3.x |
-          | Database | PostgreSQL | 15.x |
-          | Build Tool | Maven | 3.x |
-          | Java | OpenJDK | 17 |
-          | Code Quality | SonarCloud | Latest |
-          | CI/CD | GitHub Actions | Latest |
-          | Container | Docker + GHCR | Latest |
-          
-          ## 🎯 Entwicklungsstatus
-          
-          - ✅ **CI/CD Pipeline** - Vollständig implementiert
-          - ✅ **Automatische Tests** - Frontend + Backend
-          - ✅ **Code-Qualitätsprüfung** - SonarCloud integriert
-          - ✅ **Container Deployment** - Docker Images in GHCR
-          - ⏳ **E2E Tests** - Geplant
-          - ⏳ **Monitoring** - In Vorbereitung
-          - ⏳ **Production Deployment** - Nächste Phase
-          
-          ---
-          *🤖 Automatisch aktualisiert durch GitHub Actions - $(date '+%d.%m.%Y %H:%M:%S')*
-          EOF
-          
-      - name: Commit README
-        run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add README.md
-          if git diff --staged --quiet; then
-            echo "Keine Änderungen in README.md"
-          else
-            git commit -m "📊 Update README dashboard [skip ci]" || echo "Commit fehlgeschlagen - möglicherweise keine Änderungen"
-            git push || echo "Push fehlgeschlagen - möglicherweise Berechtigungsproblem"
-          fi
-
       - name: Metadaten für Account Service extrahieren
         id: meta-account
         uses: docker/metadata-action@v5
@@ -609,3 +354,138 @@ jobs:
           # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
           # cache-from: type=gha
           # cache-to: type=gha,mode=max
+
+  generate-report:
+    name: Generate Build Report
+    runs-on: ubuntu-latest
+    needs: [frontend-build-test, auth-service-build-test, account-service-build-test, sonar-auth-service, sonar-account-service, docker-build-push]
+    if: always()
+    steps:
+      - name: Generate Summary Report
+        run: |
+          echo "# 🚀 Bank Portal CI/CD Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.frontend-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth Service | ${{ needs.auth-service-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Account Service | ${{ needs.account-service-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarQube Auth | ${{ needs.sonar-auth-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarQube Account | ${{ needs.sonar-account-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build & Push | ${{ needs.docker-build-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Auth Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Account Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-account-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [GitHub Container Registry](https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📈 Pipeline Metriken" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** \`${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Built at:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Nächste Schritte" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Code-Qualität in SonarCloud überprüfen" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Docker Images in GHCR kontrollieren" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Deployment planen" >> $GITHUB_STEP_SUMMARY
+
+  update-readme:
+    name: Update README Dashboard
+    runs-on: ubuntu-latest
+    needs: [generate-report]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Update README Status
+        run: |
+          cat > README.md << 'EOF'
+          # 🏦 Bank Portal Demo
+          
+          ![CI/CD Pipeline](https://github.com/${{ github.repository }}/workflows/Bank%20Portal%20CI%2FCD%20Pipeline/badge.svg)
+          ![Last Commit](https://img.shields.io/github/last-commit/${{ github.repository }})
+          ![Repo Size](https://img.shields.io/github/repo-size/${{ github.repository }})
+          
+          ## 📊 Aktueller Pipeline Status
+          
+          | Service | Build Status | Last Updated |
+          |---------|-------------|--------------|
+          | 🔐 Auth Service | ✅ Build erfolgreich | $(date '+%d.%m.%Y %H:%M:%S') |
+          | 💰 Account Service | ✅ Build erfolgreich | $(date '+%d.%m.%Y %H:%M:%S') |
+          | 🌐 Frontend | ✅ Build erfolgreich | $(date '+%d.%m.%Y %H:%M:%S') |
+          | 🔍 SonarQube Analysis | ✅ Completed | $(date '+%d.%m.%Y %H:%M:%S') |
+          | 🐳 Docker Images | ✅ Pushed to GHCR | $(date '+%d.%m.%Y %H:%M:%S') |
+          
+          ## 🚀 Quick Links
+          
+          - **🔍 Code-Qualität:** [SonarCloud Dashboard](https://sonarcloud.io/organizations/thanhtuanh/projects)
+          - **🐳 Container Images:** [GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs)
+          - **📋 CI/CD Pipeline:** [GitHub Actions](https://github.com/${{ github.repository }}/actions)
+          - **📊 Pipeline Reports:** [Latest Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ## 🏗️ Architektur
+          
+          ```
+          ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
+          │   Frontend  │───▶│ Auth Service │───▶│ PostgreSQL  │
+          │   (React)   │    │(Spring Boot) │    │ Database    │
+          └─────────────┘    └──────────────┘    └─────────────┘
+                                     │
+                                     ▼
+                             ┌──────────────┐    ┌─────────────┐
+                             │Account Service│───▶│ PostgreSQL  │
+                             │(Spring Boot) │    │ Database    │
+                             └──────────────┘    └─────────────┘
+          ```
+          
+          ## 📈 Letzte Aktivität
+          
+          - **Letzter Commit:** `${{ github.sha }}`
+          - **Branch:** `${{ github.ref_name }}`
+          - **Author:** ${{ github.actor }}
+          - **Build Zeit:** $(date '+%d.%m.%Y %H:%M:%S')
+          
+          ## 🛠️ Technologie Stack
+          
+          | Komponente | Technologie | Version |
+          |------------|-------------|---------|
+          | Frontend | React + TypeScript | 18.x |
+          | Backend | Spring Boot | 3.x |
+          | Database | PostgreSQL | 15.x |
+          | Build Tool | Maven | 3.x |
+          | Java | OpenJDK | 17 |
+          | Code Quality | SonarCloud | Latest |
+          | CI/CD | GitHub Actions | Latest |
+          | Container | Docker + GHCR | Latest |
+          
+          ## 🎯 Entwicklungsstatus
+          
+          - ✅ **CI/CD Pipeline** - Vollständig implementiert
+          - ✅ **Automatische Tests** - Frontend + Backend
+          - ✅ **Code-Qualitätsprüfung** - SonarCloud integriert
+          - ✅ **Container Deployment** - Docker Images in GHCR
+          - ⏳ **E2E Tests** - Geplant
+          - ⏳ **Monitoring** - In Vorbereitung
+          - ⏳ **Production Deployment** - Nächste Phase
+          
+          ---
+          *🤖 Automatisch aktualisiert durch GitHub Actions - $(date '+%d.%m.%Y %H:%M:%S')*
+          EOF
+
+      - name: Commit README
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "Keine Änderungen in README.md"
+          else
+            git commit -m "📊 Update README dashboard [skip ci]"
+            git push
+          fi
