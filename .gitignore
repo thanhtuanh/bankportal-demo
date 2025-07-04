@@ -4,6 +4,16 @@
 # Log files
 *.log
 
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Keep templates and examples
+!.env.template
+!.env.development
+!.env.production
+
 # BlueJ files
 *.ctxt
 
