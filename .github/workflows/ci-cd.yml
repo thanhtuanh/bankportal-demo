@@ -1222,7 +1222,7 @@ ORIGINAL_EOF
           - **📋 CI/CD Pipeline:** [GitHub Actions](https://github.com/${{ github.repository }}/actions)
           - **📊 Pipeline Report:** [Letzter Lauf](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           
-          ### 📈 Letzte Pipeline-Aktivität 
+          ### 📈 Letzte Pipeline-Aktivität
           
           - **Letzter Commit:** \`${{ github.sha }}\`
           - **Branch:** \`${{ github.ref_name }}\`
