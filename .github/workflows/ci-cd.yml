@@ -170,10 +170,130 @@ jobs:
           path: account-service/target/*.jar
           retention-days: 30
 
+  sonar-auth-service:
+    name: 🔍 SonarCloud Analysis - Auth Service
+    runs-on: ubuntu-latest
+    needs: [auth-service-build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: authdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+      
+      - name: 🗂️ Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      
+      - name: 🗂️ Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      
+      - name: 🔍 Build and analyze Auth Service
+        working-directory: ./auth-service
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
+            -Dsonar.projectName="Bank Portal Auth Service" \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io
+
+  sonar-account-service:
+    name: 🔍 SonarCloud Analysis - Account Service
+    runs-on: ubuntu-latest
+    needs: [account-service-build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: accountdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+      
+      - name: 🗂️ Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      
+      - name: 🗂️ Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      
+      - name: 🔍 Build and analyze Account Service
+        working-directory: ./account-service
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkey123456
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
+            -Dsonar.projectName="Bank Portal Account Service" \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io
+
   docker-build:
     name: 🐳 Docker Build & Push
     runs-on: ubuntu-latest
-    needs: [frontend-build, auth-service-build, account-service-build]
+    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
@@ -266,7 +386,7 @@ jobs:
   deployment-report:
     name: 📊 Deployment Report
     runs-on: ubuntu-latest
-    needs: [frontend-build, auth-service-build, account-service-build, docker-build, integration-test]
+    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service, docker-build, integration-test]
     if: always()
     steps:
       - name: 📊 Generate Deployment Report
@@ -279,6 +399,8 @@ jobs:
           echo "| Frontend Build | ${{ needs.frontend-build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Auth Service | ${{ needs.auth-service-build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Account Service | ${{ needs.account-service-build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarCloud Auth | ${{ needs.sonar-auth-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarCloud Account | ${{ needs.sonar-account-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Build | ${{ needs.docker-build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Integration Tests | ${{ needs.integration-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -286,6 +408,8 @@ jobs:
           echo "- [Frontend](http://localhost:4200)" >> $GITHUB_STEP_SUMMARY
           echo "- [Auth Service Swagger](http://localhost:8081/swagger-ui.html)" >> $GITHUB_STEP_SUMMARY
           echo "- [Account Service Swagger](http://localhost:8082/swagger-ui.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Auth Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Account Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-account-service)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📈 Pipeline Metrics" >> $GITHUB_STEP_SUMMARY
           echo "- **Repository:** \`${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY
