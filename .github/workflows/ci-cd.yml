@@ -353,7 +353,7 @@ jobs:
           provenance: false
           # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
           # cache-from: type=gha
-          # cache-to: type=gha,mode=max
+          # cache-to: type=gha,mode=max 
 
   generate-report:
     name: Generate Build Report
