@@ -49,8 +49,8 @@ jobs:
         if [ -f "pom.xml" ]; then
           echo "Analyzing ${{ matrix.service }}..."
           mvn clean compile sonar:sonar \
-            -Dsonar.projectKey=thanhtuanh_bankportal-demo-${{ matrix.service }} \
-            -Dsonar.organization=thanhtuanh \
+            -Dsonar.projectKey=bankportal-demo-${{ matrix.service }} \
+            -Dsonar.organization=your-org \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.branch.name=main \
             -Dsonar.branch.target=main

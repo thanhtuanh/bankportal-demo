@@ -21,7 +21,7 @@ metadata:
   namespace: bankportal-dev
 type: Opaque
 data:
-  password: cGFzc3dvcmQxMjM=  # 'password123'
+  password: YWRtaW4=  # 'admin'
 
 ---
 
@@ -33,6 +33,81 @@ metadata:
 type: Opaque
 data:
   secret: bXlzZWNyZXRrZXltdnNlY3JldGtleW15c2VjcmV0a2V5MTIzNDU2
+
+---
+
+# =============================================================================
+# AUTH SERVICE DEPLOYMENT
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bankportal-auth-service
+  namespace: bankportal-dev
+  labels:
+    app: bankportal-auth-service
+    tier: backend
+    service: auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bankportal-auth-service
+  template:
+    metadata:
+      labels:
+        app: bankportal-auth-service
+        tier: backend
+        service: auth
+    spec:
+      containers:
+      - name: auth-service
+        image: bankportal-demo-auth-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-auth-service:5432/authdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "admin"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
 
 ---
 
@@ -62,13 +137,14 @@ spec:
     spec:
       containers:
       - name: account-service
-        image: ghcr.io/thanhtuanh/bankportal-demo-account-service:latest
+        image: bankportal-demo-account-service:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8082
           name: http
         env:
         - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-auth-service:5432/accountdb"
+          value: "jdbc:postgresql://postgres-account-service:5432/accountdb"
         - name: SPRING_DATASOURCE_USERNAME
           value: "admin"
         - name: SPRING_DATASOURCE_PASSWORD
@@ -147,15 +223,15 @@ spec:
         prometheus.io/path: "/"
     spec:
       securityContext:
-        fsGroup: 101
         runAsNonRoot: true
         runAsUser: 101
+        fsGroup: 101
       containers:
       - name: frontend
-        image: ghcr.io/thanhtuanh/bankportal-demo-frontend:latest
+        image: bankportal-demo-frontend:latest
+        imagePullPolicy: Never
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
           runAsNonRoot: true
           runAsUser: 101
           capabilities:
@@ -184,6 +260,9 @@ spec:
             memory: "1Gi"
             cpu: "1000m"
         volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
         - name: nginx-cache
           mountPath: /var/cache/nginx
         - name: nginx-run
@@ -214,6 +293,9 @@ spec:
           timeoutSeconds: 5
           failureThreshold: 3
       volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
       - name: nginx-cache
         emptyDir: {}
       - name: nginx-run
@@ -226,6 +308,23 @@ spec:
 # =============================================================================
 # SERVICES
 # =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: bankportal-auth-service
+  namespace: bankportal-dev
+spec:
+  selector:
+    app: bankportal-auth-service
+  ports:
+  - port: 8081
+    targetPort: http
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+---
+
 apiVersion: v1
 kind: Service
 metadata:
