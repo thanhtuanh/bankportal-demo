@@ -313,6 +313,44 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Report Generation Job
+  generate-report:
+    name: Generate Build Report
+    runs-on: ubuntu-latest
+    needs: [frontend-build-test, auth-service-build-test, account-service-build-test, sonar-auth-service, sonar-account-service, docker-build-push]
+    if: always()  # Läuft auch bei Fehlern
+    steps:
+      - name: Generate Summary Report
+        run: |
+          echo "# 🚀 Bank Portal CI/CD Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.frontend-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth Service | ${{ needs.auth-service-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Account Service | ${{ needs.account-service-build-test.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarQube Auth | ${{ needs.sonar-auth-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarQube Account | ${{ needs.sonar-account-service.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build & Push | ${{ needs.docker-build-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Auth Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Account Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-account-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [GitHub Container Registry](https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📈 Pipeline Metriken" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** \`${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Built at:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Nächste Schritte" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Code-Qualität in SonarCloud überprüfen" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Docker Images in GHCR kontrollieren" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Deployment planen" >> $GITHUB_STEP_SUMMARY
+
       - name: Metadaten für Account Service extrahieren
         id: meta-account
         uses: docker/metadata-action@v5
