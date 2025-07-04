@@ -353,7 +353,7 @@ jobs:
           provenance: false
           # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
           # cache-from: type=gha
-          # cache-to: type=gha,mode=max 
+          # cache-to: type=gha,mode=max
 
   generate-report:
     name: Generate Build Report
@@ -405,77 +405,75 @@ jobs:
 
       - name: Update README Status
         run: |
-          cat > README.md << 'EOF'
-          # 🏦 Bank Portal Demo
+          # Get real commit author name
+          AUTHOR_NAME=$(git log -1 --pretty=format:'%an')
+          
+          # Backup current README
+          if [ -f README.md ]; then
+            cp README.md README.backup.md
+          fi
+          
+          # Check if README has CI/CD status section and remove it
+          if grep -q "<!-- CI/CD STATUS START -->" README.md 2>/dev/null; then
+            # Remove old CI/CD status section and everything after it
+            sed '/<!-- CI/CD STATUS START -->/,$d' README.md > README.temp.md
+            mv README.temp.md README.md
+          fi
+          
+          # Append CI/CD status section to existing README (preserving original content)
+          cat >> README.md << EOF
+          
+          <!-- CI/CD STATUS START -->
+          
+          -----
+          
+          ## 🤖 CI/CD Pipeline Status
           
           ![CI/CD Pipeline](https://github.com/${{ github.repository }}/workflows/Bank%20Portal%20CI%2FCD%20Pipeline/badge.svg)
           ![Last Commit](https://img.shields.io/github/last-commit/${{ github.repository }})
           ![Repo Size](https://img.shields.io/github/repo-size/${{ github.repository }})
           
-          ## 📊 Aktueller Pipeline Status
+          ### 📊 Aktueller Build Status
           
-          | Service | Build Status | Last Updated |
-          |---------|-------------|--------------|
+          | Service | Status | Letztes Update |
+          |---------|--------|----------------|
           | 🔐 Auth Service | ✅ Build erfolgreich | $(date '+%d.%m.%Y %H:%M:%S') |
           | 💰 Account Service | ✅ Build erfolgreich | $(date '+%d.%m.%Y %H:%M:%S') |
           | 🌐 Frontend | ✅ Build erfolgreich | $(date '+%d.%m.%Y %H:%M:%S') |
-          | 🔍 SonarQube Analysis | ✅ Completed | $(date '+%d.%m.%Y %H:%M:%S') |
-          | 🐳 Docker Images | ✅ Pushed to GHCR | $(date '+%d.%m.%Y %H:%M:%S') |
+          | 🔍 SonarQube Analyse | ✅ Abgeschlossen | $(date '+%d.%m.%Y %H:%M:%S') |
+          | 🐳 Docker Images | ✅ Zu GHCR gepusht | $(date '+%d.%m.%Y %H:%M:%S') |
           
-          ## 🚀 Quick Links
+          ### 🔗 Entwickler-Links
           
           - **🔍 Code-Qualität:** [SonarCloud Dashboard](https://sonarcloud.io/organizations/thanhtuanh/projects)
           - **🐳 Container Images:** [GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs)
           - **📋 CI/CD Pipeline:** [GitHub Actions](https://github.com/${{ github.repository }}/actions)
-          - **📊 Pipeline Reports:** [Latest Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **📊 Pipeline Report:** [Letzter Lauf](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           
-          ## 🏗️ Architektur
+          ### 📈 Letzte Pipeline-Aktivität
           
-          ```
-          ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-          │   Frontend  │───▶│ Auth Service │───▶│ PostgreSQL  │
-          │   (React)   │    │(Spring Boot) │    │ Database    │
-          └─────────────┘    └──────────────┘    └─────────────┘
-                                     │
-                                     ▼
-                             ┌──────────────┐    ┌─────────────┐
-                             │Account Service│───▶│ PostgreSQL  │
-                             │(Spring Boot) │    │ Database    │
-                             └──────────────┘    └─────────────┘
-          ```
+          - **Letzter Commit:** \`${{ github.sha }}\`
+          - **Branch:** \`${{ github.ref_name }}\`
+          - **Autor:** \${AUTHOR_NAME}
+          - **Build-Zeit:** $(date '+%d.%m.%Y %H:%M:%S')
+          - **Ausgelöst durch:** ${{ github.event_name }}
           
-          ## 📈 Letzte Aktivität
+          ### 🛠️ DevOps Pipeline
           
-          - **Letzter Commit:** `${{ github.sha }}`
-          - **Branch:** `${{ github.ref_name }}`
-          - **Author:** ${{ github.actor }}
-          - **Build Zeit:** $(date '+%d.%m.%Y %H:%M:%S')
+          | Phase | Tool | Status |
+          |-------|------|--------|
+          | Build | Maven + npm | ✅ |
+          | Tests | JUnit + Jest | ✅ |
+          | Code-Qualität | SonarCloud | ✅ |
+          | Containerisierung | Docker + GHCR | ✅ |
+          | CI/CD | GitHub Actions | ✅ |
           
-          ## 🛠️ Technologie Stack
+          > **Hinweis:** Diese Pipeline demonstriert moderne DevOps-Praktiken für die Bankenbranche mit automatisierten Tests, Code-Qualitätsprüfungen und sicherer Container-Bereitstellung.
           
-          | Komponente | Technologie | Version |
-          |------------|-------------|---------|
-          | Frontend | React + TypeScript | 18.x |
-          | Backend | Spring Boot | 3.x |
-          | Database | PostgreSQL | 15.x |
-          | Build Tool | Maven | 3.x |
-          | Java | OpenJDK | 17 |
-          | Code Quality | SonarCloud | Latest |
-          | CI/CD | GitHub Actions | Latest |
-          | Container | Docker + GHCR | Latest |
+          -----
+          *🤖 Automatisch aktualisiert durch GitHub Actions Pipeline - $(date '+%d.%m.%Y %H:%M:%S')*
           
-          ## 🎯 Entwicklungsstatus
-          
-          - ✅ **CI/CD Pipeline** - Vollständig implementiert
-          - ✅ **Automatische Tests** - Frontend + Backend
-          - ✅ **Code-Qualitätsprüfung** - SonarCloud integriert
-          - ✅ **Container Deployment** - Docker Images in GHCR
-          - ⏳ **E2E Tests** - Geplant
-          - ⏳ **Monitoring** - In Vorbereitung
-          - ⏳ **Production Deployment** - Nächste Phase
-          
-          ---
-          *🤖 Automatisch aktualisiert durch GitHub Actions - $(date '+%d.%m.%Y %H:%M:%S')*
+          <!-- CI/CD STATUS END -->
           EOF
 
       - name: Commit README
