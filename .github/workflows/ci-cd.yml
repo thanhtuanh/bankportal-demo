@@ -37,7 +37,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npm run lint
       - run: npm run test:ci
       - run: npm run build:prod
@@ -178,9 +178,9 @@ jobs:
           JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
+            -Dsonar.projectKey=bankportal-demo-auth-service \
             -Dsonar.projectName="Bank Portal Auth Service" \
-            -Dsonar.organization=thanhtuanh \
+            -Dsonar.organization=your-org \
             -Dsonar.host.url=https://sonarcloud.io
 
   sonar-account-service:
@@ -234,9 +234,9 @@ jobs:
           JWT_SECRET: testsecretkeytestsecretkey123456
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
+            -Dsonar.projectKey=bankportal-demo-account-service \
             -Dsonar.projectName="Bank Portal Account Service" \
-            -Dsonar.organization=thanhtuanh \
+            -Dsonar.organization=your-org \
             -Dsonar.host.url=https://sonarcloud.io
 
   docker-build-push:
@@ -354,9 +354,9 @@ jobs:
           echo "| Docker Build & Push | ${{ needs.docker-build-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [SonarCloud Auth Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
-          echo "- [SonarCloud Account Service](https://sonarcloud.io/project/overview?id=thanhtuanh_bankportal-demo-account-service)" >> $GITHUB_STEP_SUMMARY
-          echo "- [GitHub Container Registry](https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Auth Service](https://sonarcloud.io/project/overview?id=bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [SonarCloud Account Service](https://sonarcloud.io/project/overview?id=bankportal-demo-account-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- [GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo-auth-service)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📈 Pipeline Metriken" >> $GITHUB_STEP_SUMMARY
           echo "- **Repository:** \`${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY

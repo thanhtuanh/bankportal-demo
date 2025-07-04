@@ -1,72 +1,86 @@
-# === macOS ===
+# Compiled class files
+*.class
+
+# Log files
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Virtual machine crash logs
+hs_err_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+package-lock.json
+
+# Angular
+dist/
+.angular/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.iml
+
+# OS
 .DS_Store
-.AppleDouble
-.LSOverride
+.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-.VolumeIcon.icns
-.apdisk
-.TemporaryItems
-
-# === IDEs & Editoren ===
-.idea/
-.vscode/
-*.iml
-*.iws
-*.ipr
-*.sw?
-*.swo
-*.bak
-*.tmp
-*.log
-
-# === Java / Maven / Spring Boot ===
-*.class
-*.jar
-*.war
-*.ear
-target/
-**/target/
-
-# Maven Wrapper
-.mvn/
-**/mvnw
-**/mvnw.cmd
-
-# === Angular / Node.js ===
-frontend/node_modules/
-frontend/dist/
-frontend/.angular/
-frontend/.angular/cache/
-frontend/.env
-
-# Optional: Lockfiles
-#frontend/package-lock.json
-frontend/yarn.lock
-
-# === Docker ===
-*.pid
-*.tar
-.dockerignore
-docker-compose.override.yml
-
-# === Umgebungsvariablen ===
-.env
-*.local
-*.env.*
-
-# === Projektspezifisch ===
-.history/
-
-# === Test & Coverage ===
-coverage/
-*.out
-*.test.js
-
-test-results/
-
-# === Windows / System ===
-Thumbs.db
 ehthumbs.db
-Desktop.ini
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.bak
+*.orig
+
+# Test results
+junit.xml
+*.lcov
