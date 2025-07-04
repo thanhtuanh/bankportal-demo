@@ -313,9 +313,10 @@ jobs:
           push: true
           tags: ${{ steps.meta-auth.outputs.tags }}
           labels: ${{ steps.meta-auth.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           provenance: false
+          # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
 
   # Report Generation Job
   generate-report:
@@ -479,9 +480,10 @@ jobs:
           push: true
           tags: ${{ steps.meta-account.outputs.tags }}
           labels: ${{ steps.meta-account.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           provenance: false
+          # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
 
       - name: Metadaten für Frontend extrahieren
         id: meta-frontend
@@ -502,6 +504,7 @@ jobs:
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           provenance: false
+          # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
