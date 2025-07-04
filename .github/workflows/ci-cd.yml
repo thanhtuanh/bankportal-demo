@@ -410,10 +410,161 @@ jobs:
           
           # Check if we have the original README content
           if ! grep -q "🏦 Bank Portal – Eine zukunftssichere Finanzanwendung" README.md 2>/dev/null; then
-            echo "Original README content not found. Restoring from backup or template..."
+            echo "Original README content not found. Restoring..."
             
-            # Create the original README with your content
-            cat > README.md << 'ORIGINAL_EOF'
+            # Create original README content in a separate file first
+            cat > original_readme.md << 'EOF'
+# 🏦 Bank Portal – Eine zukunftssichere Finanzanwendung
+
+Eine **moderne, mikroservice-basierte Banking-Plattform** mit einem responsiven Angular Frontend und einem robusten Spring Boot Backend, speziell entwickelt, um die hohen Anforderungen der Finanzbranche an **Sicherheit, Skalierbarkeit und Zuverlässigkeit** zu erfüllen.
+
+-----
+
+## 🎯 Überblick & Relevanz für die Bankenbranche
+
+Das **Bank Portal** ist eine vollständige Banking-Anwendung, die **Kernfunktionen eines modernen Finanzinstituts** abbildet und dabei höchsten Wert auf **Sicherheit, Datenintegrität und Benutzerfreundlichkeit** legt. Dieses Projekt demonstriert meine Fähigkeit, komplexe **Softwarelösungen für regulierte Umfelder** zu entwickeln, die den Anforderungen an eine ausfallsichere und performante Bankensoftware gerecht werden.
+
+**Hauptfunktionen:**
+
+  - **Sichere Benutzerregistrierung und -anmeldung:** Umfassendes Authentifizierungs- und Autorisierungssystem.
+  - **Robuste Kontoverwaltung:** Zuverlässige Erstellung, Anzeige und Verwaltung von Bankkonten.
+  - **Auditierbare Geldtransfers:** Sichere und nachvollziehbare Transaktionen zwischen Konten.
+  - **JWT-basierte Authentifizierung:** Standardkonforme und skalierbare Sicherheitsmechanismen.
+  - **Responsives Angular Frontend:** Intuitive und zugängliche Benutzeroberfläche für verschiedene Endgeräte.
+  - **Mikroservice-Architektur:** Ermöglicht flexible Skalierung und einfache Wartung der einzelnen Geschäftsbereiche.
+
+-----
+
+## 🛠️ Technologie-Stack
+
+### Frontend
+- **Angular 18+:** Framework für komplexe Single Page Applications
+- **TypeScript:** Typsichere Entwicklung für robusten Code
+- **SCSS:** Effizientes Styling für responsives Design
+
+### Backend  
+- **Spring Boot 3.x:** Enterprise Java-Framework
+- **Spring Security:** Sicherheitsframework für Authentifizierung
+- **PostgreSQL:** Robuste relationale Datenbank
+- **JWT:** Token-basierte Authentifizierung
+- **Docker:** Containerisierung für konsistente Deployments
+
+-----
+
+## 🚀 Installation & Setup
+
+### Voraussetzungen
+- **Node.js** (v18+) & **Angular CLI** für das Frontend
+- **Java 17+** & **Maven 3.6+** für das Backend  
+- **PostgreSQL 13+** als Datenbanksystem
+
+### Backend Services Starten
+
+```bash
+# Auth Service
+cd auth-service
+mvn clean install
+mvn spring-boot:run
+
+# Account Service  
+cd account-service
+mvn clean install
+mvn spring-boot:run
+```
+
+### Frontend Starten
+
+```bash
+cd frontend
+npm install
+ng serve
+```
+
+-----
+
+## 📄 Lizenz
+
+Dieses Projekt ist unter der **MIT Lizenz** veröffentlicht.
+
+-----
+
+**Version:** 1.0.0  
+**Letztes Update:** Juli 2025
+EOF
+            
+            # Replace current README with original content
+            mv original_readme.md README.md
+          fi
+          
+          # Remove any existing CI/CD status section
+          if grep -q "<!-- CI/CD STATUS START -->" README.md 2>/dev/null; then
+            sed '/<!-- CI/CD STATUS START -->/,$d' README.md > README.temp.md
+            mv README.temp.md README.md
+          fi
+          
+          # Append CI/CD status section
+          cat >> README.md << 'CICD_EOF'
+          
+          <!-- CI/CD STATUS START -->
+          
+          -----
+          
+          ## 🤖 CI/CD Pipeline Status
+          
+          ![CI/CD Pipeline](https://github.com/thanhtuanh/bankportal-demo/workflows/Bank%20Portal%20CI%2FCD%20Pipeline/badge.svg)
+          ![Last Commit](https://img.shields.io/github/last-commit/thanhtuanh/bankportal-demo)
+          ![Repo Size](https://img.shields.io/github/repo-size/thanhtuanh/bankportal-demo)
+          
+          ### 📊 Aktueller Build Status
+          
+          | Service | Status | Letztes Update |
+          |---------|--------|----------------|
+          | 🔐 Auth Service | ✅ Build erfolgreich | 
+          | 💰 Account Service | ✅ Build erfolgreich |
+          | 🌐 Frontend | ✅ Build erfolgreich |
+          | 🔍 SonarQube Analyse | ✅ Abgeschlossen |
+          | 🐳 Docker Images | ✅ Zu GHCR gepusht |
+          
+          ### 🔗 Entwickler-Links
+          
+          - **🔍 Code-Qualität:** [SonarCloud Dashboard](https://sonarcloud.io/organizations/thanhtuanh/projects)
+          - **🐳 Container Images:** [GitHub Container Registry](https://github.com/thanhtuanh/bankportal-demo/pkgs)
+          - **📋 CI/CD Pipeline:** [GitHub Actions](https://github.com/thanhtuanh/bankportal-demo/actions)
+          
+          ### 📈 Letzte Pipeline-Aktivität
+          
+          - **Letzter Commit:** `3f506c0`
+          - **Branch:** `main`  
+          - **Autor:** Duc Thanh Nguyen
+          - **Build-Zeit:** 
+          - **Ausgelöst durch:** push
+          
+          ### 🛠️ DevOps Pipeline
+          
+          | Phase | Tool | Status |
+          |-------|------|--------|
+          | Build | Maven + npm | ✅ |
+          | Tests | JUnit + Jest | ✅ |
+          | Code-Qualität | SonarCloud | ✅ |
+          | Containerisierung | Docker + GHCR | ✅ |
+          | CI/CD | GitHub Actions | ✅ |
+          
+          > **Hinweis:** Diese Pipeline demonstriert moderne DevOps-Praktiken für die Bankenbranche mit automatisierten Tests, Code-Qualitätsprüfungen und sicherer Container-Bereitstellung.
+          
+          -----
+          *🤖 Automatisch aktualisiert durch GitHub Actions Pipeline*
+          
+          <!-- CI/CD STATUS END -->
+          CICD_EOF
+          
+          # Update dynamic values
+          CURRENT_DATE=$(date '+%d.%m.%Y %H:%M:%S')
+          sed -i "s/| 🔐 Auth Service | ✅ Build erfolgreich | /| 🔐 Auth Service | ✅ Build erfolgreich | ${CURRENT_DATE} |/g" README.md
+          sed -i "s/| 💰 Account Service | ✅ Build erfolgreich |/| 💰 Account Service | ✅ Build erfolgreich | ${CURRENT_DATE} |/g" README.md
+          sed -i "s/| 🌐 Frontend | ✅ Build erfolgreich |/| 🌐 Frontend | ✅ Build erfolgreich | ${CURRENT_DATE} |/g" README.md
+          sed -i "s/| 🔍 SonarQube Analyse | ✅ Abgeschlossen |/| 🔍 SonarQube Analyse | ✅ Abgeschlossen | ${CURRENT_DATE} |/g" README.md
+          sed -i "s/| 🐳 Docker Images | ✅ Zu GHCR gepusht |/| 🐳 Docker Images | ✅ Zu GHCR gepusht | ${CURRENT_DATE} |/g" README.md
+          sed -i "s/- \*\*Build-Zeit:\*\* /- **Build-Zeit:** ${CURRENT_DATE}/g" README.md
 # 🏦 Bank Portal – Eine zukunftssichere Finanzanwendung
 
 Eine **moderne, mikroservice-basierte Banking-Plattform** mit einem responsiven Angular Frontend und einem robusten Spring Boot Backend, speziell entwickelt, um die hohen Anforderungen der Finanzbranche an **Sicherheit, Skalierbarkeit und Zuverlässigkeit** zu erfüllen.
