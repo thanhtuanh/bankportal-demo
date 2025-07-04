@@ -1,4 +1,4 @@
-name: SonarCloud Analysis 
+name: SonarCloud Analysis
 
 on:
   push:
@@ -9,6 +9,10 @@ on:
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service: [account-service, auth-service]
     
     steps:
     - uses: actions/checkout@v4
@@ -28,15 +32,30 @@ jobs:
         key: ${{ runner.os }}-sonar
         restore-keys: ${{ runner.os }}-sonar
     
-    - name: Build and analyze
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Build and analyze ${{ matrix.service }}
+      working-directory: ./${{ matrix.service }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       run: |
-        # Explizit main branch analysieren
-        mvn clean compile sonar:sonar \
-          -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
-          -Dsonar.organization=thanhtuanh \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.branch.name=main \
-          -Dsonar.branch.target=main
+        # Überprüfen ob pom.xml existiert
+        if [ -f "pom.xml" ]; then
+          echo "Analyzing ${{ matrix.service }}..."
+          mvn clean compile sonar:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-${{ matrix.service }} \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.branch.name=main \
+            -Dsonar.branch.target=main
+        else
+          echo "Error: No pom.xml found in ${{ matrix.service }} directory"
+          ls -la
+          exit 1
+        fi
