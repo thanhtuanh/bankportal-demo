@@ -1,5 +1,8 @@
 name: SonarCloud Analysis
 
+# Temporarily disabled until SonarCloud projects are properly configured
+# To enable: remove the 'if: false' condition below
+
 on:
   push:
     branches: [ main ]
@@ -9,6 +12,7 @@ on:
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+    if: false  # Disabled until SonarCloud is configured
     
     strategy:
       matrix:
