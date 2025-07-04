@@ -351,7 +351,7 @@ jobs:
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           provenance: false
-          # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen
+          # GitHub Actions Cache temporär deaktiviert wegen Service-Problemen 
           # cache-from: type=gha
           # cache-to: type=gha,mode=max
 
