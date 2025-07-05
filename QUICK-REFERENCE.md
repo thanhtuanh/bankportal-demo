@@ -1,177 +1,227 @@
-# 🚀 Bank Portal - Quick Reference
+# 🏦 Bank Portal - Quick Reference Guide
 
-## 📋 **Schnellstart Commands**
+## 🚀 **Ein-Klick Demo Start**
 
-### **Lokale Entwicklung**
 ```bash
-# Schneller Start
+# Repository klonen und Demo starten
+git clone https://github.com/thanhtuanh/bankportal-demo.git
+cd bankportal-demo
+./start-demo.sh
+
+# Alternative: Manuell
+docker-compose up -d
+```
+
+## 📊 **Service URLs**
+
+| Service | URL | Port |
+|---------|-----|------|
+| 🌐 **Frontend** | http://localhost:4200 | 4200 |
+| 🔐 **Auth Service** | http://localhost:8081 | 8081 |
+| 💼 **Account Service** | http://localhost:8082 | 8082 |
+| 🔐 **Auth Swagger** | http://localhost:8081/swagger-ui/index.html | 8081 |
+| 💼 **Account Swagger** | http://localhost:8082/swagger-ui/index.html | 8082 |
+| 📊 **Health Auth** | http://localhost:8081/api/health | 8081 |
+| 📊 **Health Account** | http://localhost:8082/api/health | 8082 |
+
+## 🗄️ **Database Connections**
+
+| Database | Host | Port | User | Password | Database |
+|----------|------|------|------|----------|----------|
+| **Auth DB** | localhost | 5433 | admin | admin | authdb |
+| **Account DB** | localhost | 5434 | admin | admin | accountdb |
+
+```bash
+# Database Connection Commands
+docker exec -it postgres-auth psql -U admin -d authdb
+docker exec -it postgres-account psql -U admin -d accountdb
+```
+
+## 🧪 **Demo API Tests**
+
+### **1. Benutzer registrieren**
+```bash
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "demo", "password": "demo123"}'
+```
+
+### **2. JWT Token erhalten**
+```bash
+TOKEN=$(curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "demo", "password": "demo123"}' \
+  | jq -r '.token')
+```
+
+### **3. Konto erstellen**
+```bash
+curl -X POST http://localhost:8082/api/accounts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"owner": "demo", "balance": 1000.0}'
+```
+
+### **4. Konten anzeigen**
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8082/api/accounts
+```
+
+### **5. Geld überweisen**
+```bash
+curl -X POST http://localhost:8082/api/accounts/transfer \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"fromAccountId": 1, "toAccountId": 2, "amount": 100.0}'
+```
+
+## 🐳 **Docker Commands**
+
+### **Standard Commands**
+```bash
+# Demo starten
 docker-compose up -d
 
-# Mit frischen Images
-./scripts/deploy-local.sh
+# Production mit Backup
+docker-compose -f docker-compose-backup.yml up -d
 
-# CI/CD lokal testen
-./scripts/ci-local-quick.sh
+# Services stoppen
+docker-compose down
 
-# API Tests
-./scripts/test-api.sh
-```
+# Mit Datenbereinigung
+docker-compose down -v
 
-### **Kubernetes**
-```bash
-# Minikube starten
-minikube start --memory=4096 --cpus=2
-
-# Deployment
-kubectl apply -f k8s/dev/
-
-# Status
-./scripts/monitor-k8s.sh
-
-# Port-Forward
-kubectl port-forward service/bankportal-frontend-service 4200:80 -n bankportal-dev
-```
-
-### **Monitoring**
-```bash
-# Prometheus & Grafana starten
-docker run -d --name prometheus -p 9090:9090 prom/prometheus:latest
-docker run -d --name grafana -p 3000:3000 -e GF_SECURITY_ADMIN_PASSWORD=admin grafana/grafana:latest
-```
-
-### **Backup & Security**
-```bash
-# Backup erstellen
-./scripts/backup-system.sh backup
-
-# SSL Zertifikate generieren
-./scripts/generate-ssl.sh
-
-# Security Scan
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image bankportal-demo-auth-service:latest
-```
-
-## 🌐 **URLs nach Deployment**
-
-| Service | URL | Beschreibung |
-|---------|-----|--------------|
-| **Frontend** | http://localhost:4200 | Angular SPA |
-| **Auth API** | http://localhost:8081 | Authentifizierung |
-| **Account API** | http://localhost:8082 | Kontenverwaltung |
-| **Auth Swagger** | http://localhost:8081/swagger-ui.html | API Dokumentation |
-| **Account Swagger** | http://localhost:8082/swagger-ui.html | API Dokumentation |
-| **Prometheus** | http://localhost:9090 | Metriken |
-| **Grafana** | http://localhost:3000 | Dashboards (admin/admin) |
-
-## 🔧 **Troubleshooting**
-
-### **Container Probleme**
-```bash
 # Logs anzeigen
 docker-compose logs -f
 
-# Container neu starten
-docker-compose restart <service-name>
-
-# Container Shell
-docker exec -it <container-name> /bin/bash
+# Einzelne Services
+docker-compose logs -f auth-service
+docker-compose logs -f account-service
 ```
 
-### **Kubernetes Probleme**
+### **Container Management**
 ```bash
-# Pod Logs
-kubectl logs -f <pod-name> -n bankportal-dev
+# Container Status
+docker-compose ps
 
-# Pod beschreiben
-kubectl describe pod <pod-name> -n bankportal-dev
+# In Container einloggen
+docker exec -it auth-service bash
+docker exec -it account-service bash
 
-# Events anzeigen
-kubectl get events -n bankportal-dev --sort-by='.lastTimestamp'
+# Resource Usage
+docker stats
 ```
 
-### **Häufige Fixes**
+## 🔧 **Development Commands**
+
+### **Lokale Entwicklung**
 ```bash
-# Ports freigeben
-sudo lsof -ti:4200 | xargs kill -9
-
-# Docker bereinigen
-docker system prune -f
-
-# Volumes bereinigen
-docker volume prune -f
-```
-
-## 📊 **Service Status prüfen**
-
-### **Health Checks**
-```bash
-# Auth Service
-curl http://localhost:8081/actuator/health
-
-# Account Service
-curl http://localhost:8082/actuator/health
+# Backend Services
+cd auth-service && mvn spring-boot:run
+cd account-service && mvn spring-boot:run
 
 # Frontend
-curl http://localhost:4200
+cd frontend && npm start
+
+# Tests
+cd auth-service && mvn test
+cd account-service && mvn test
+cd frontend && npm test
 ```
 
-### **API Tests**
+### **Build Commands**
 ```bash
-# Benutzer registrieren
-curl -X POST http://localhost:8081/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "password123"}'
+# Backend Build
+cd auth-service && mvn clean package
+cd account-service && mvn clean package
 
-# Anmelden
-curl -X POST http://localhost:8081/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "password123"}'
+# Frontend Build
+cd frontend && npm run build:prod
 
-# Konten abrufen (mit JWT Token)
-curl -H "Authorization: Bearer <token>" http://localhost:8082/api/accounts
+# Docker Images
+docker-compose build
 ```
 
-## 🎯 **Deployment Checkliste**
+## ☸️ **Kubernetes Commands**
 
-### **Vor dem Deployment**
-- [ ] Tests laufen durch (`./scripts/ci-local-quick.sh`)
-- [ ] Docker Images gebaut
-- [ ] Environment Variablen gesetzt
-- [ ] Datenbank verfügbar
-
-### **Nach dem Deployment**
-- [ ] Health Checks OK
-- [ ] API Tests erfolgreich
-- [ ] Frontend erreichbar
-- [ ] Logs ohne Fehler
-
-### **Production Ready**
-- [ ] SSL Zertifikate konfiguriert
-- [ ] Monitoring eingerichtet
-- [ ] Backup konfiguriert
-- [ ] Security Scan durchgeführt
-
-## 🚨 **Notfall Commands**
-
-### **Alles neu starten**
+### **Minikube Setup**
 ```bash
-docker-compose down
-docker system prune -f
-./scripts/deploy-local.sh
-```
+# Minikube starten
+minikube start --cpus=4 --memory=8192
 
-### **Backup wiederherstellen**
-```bash
-./scripts/backup-system.sh list
-./scripts/backup-system.sh restore <backup-date>
-```
+# Dashboard
+minikube dashboard
 
-### **Kubernetes Reset**
-```bash
-kubectl delete namespace bankportal-dev
+# Services deployen
 kubectl apply -f k8s/dev/
 ```
 
+### **Kubernetes Management**
+```bash
+# Status
+kubectl get pods,services,ingress
+
+# Logs
+kubectl logs -f deployment/auth-service
+kubectl logs -f deployment/account-service
+
+# Port Forwarding
+kubectl port-forward service/auth-service 8081:8081
+kubectl port-forward service/account-service 8082:8082
+```
+
+## 🔍 **Troubleshooting**
+
+### **Häufige Probleme**
+```bash
+# Services nicht erreichbar
+docker-compose restart
+
+# Port bereits belegt
+netstat -tulpn | grep :8081
+lsof -i :8081
+
+# Database Connection
+docker-compose exec postgres-auth pg_isready -U admin
+
+# Logs überprüfen
+docker-compose logs auth-service
+docker-compose logs account-service
+```
+
+### **Health Checks**
+```bash
+# Service Health
+curl http://localhost:8081/api/health
+curl http://localhost:8082/api/health
+
+# Database Health
+docker exec postgres-auth pg_isready -U admin -d authdb
+docker exec postgres-account pg_isready -U admin -d accountdb
+```
+
+## 🛑 **Demo stoppen**
+
+```bash
+# Services stoppen
+docker-compose down
+
+# Mit Datenbereinigung
+docker-compose down -v
+
+# Alle Docker Resources bereinigen
+docker system prune -a
+```
+
+## 📚 **Weitere Dokumentation**
+
+- **README.md** - Hauptdokumentation
+- **README.dev.md** - Entwickler-Guide
+- **Swagger UI** - API Dokumentation
+  - Auth: http://localhost:8081/swagger-ui/index.html
+  - Account: http://localhost:8082/swagger-ui/index.html
+
 ---
 
-**💡 Tipp:** Für detaillierte Informationen siehe [README.dev.md](README.dev.md)
+**🎉 Viel Spaß mit dem Bank Portal Demo!**

@@ -355,35 +355,110 @@ curl -X POST http://localhost:8082/api/accounts/transfer \
 
 ## 🎯 **Demo & Live-Präsentation**
 
-### **Schnellstart (5 Minuten)**
+### **🚀 Ein-Klick Demo (Ohne Setup erforderlich!)**
+
+Das Bank Portal kann **sofort ohne Konfiguration** gestartet werden:
+
 ```bash
 # 1. Repository klonen
-git clone <repository-url>
+git clone https://github.com/thanhtuanh/bankportal-demo.git
 cd bankportal-demo
 
-# 2. Ein-Klick Deployment
-./scripts/deploy-local.sh
+# 2. Demo starten (Ein Kommando!)
+./start-demo.sh
 
-# 3. Services testen
-open http://localhost:4200                    # Frontend
-open http://localhost:8082/swagger-ui.html    # API Dokumentation
+# Alternative: Manuell starten
+docker-compose up -d
 ```
 
-### **Demo-Szenario**
-1. **Benutzer-Registrierung** - Neuen Account erstellen
-2. **Sicherer Login** - JWT-Token Authentifizierung
-3. **API-Dokumentation** - Swagger UI erkunden
-4. **Konto-Erstellung** - Mehrere Bankkonten anlegen
-5. **Geld-Transfer** - Überweisung zwischen Konten
-6. **Dashboard-Ansicht** - Übersicht aller Aktivitäten
+**Das war's! 🎉** Nach 2-3 Minuten ist das komplette Banking-System bereit.
 
-### **Live-URLs (nach Deployment)**
-- 🌐 **Frontend:** http://localhost:4200
-- 🔧 **Auth API:** http://localhost:8081
-- 💼 **Account API:** http://localhost:8082
-- 📋 **Auth Swagger:** http://localhost:8081/swagger-ui.html
-- 📋 **Account Swagger:** http://localhost:8082/swagger-ui.html
-- 📊 **Monitoring:** http://localhost:3000 (Grafana)
+### **📊 Demo URLs (nach Start)**
+
+| Service | URL | Beschreibung |
+|---------|-----|--------------|
+| **🌐 Frontend** | http://localhost:4200 | Banking Web-App |
+| **🔐 Auth API** | http://localhost:8081/swagger-ui/index.html | Authentication API |
+| **💼 Account API** | http://localhost:8082/swagger-ui/index.html | Account Management API |
+| **📊 Health Checks** | http://localhost:8081/api/health | Service Status |
+
+### **🧪 Demo-Szenario (5 Minuten)**
+
+#### **1. 👤 Benutzer-Registrierung**
+```bash
+# Via Frontend: http://localhost:4200/register
+# Oder via API:
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "demo", "password": "demo123"}'
+```
+
+#### **2. 🔐 Sicherer Login**
+```bash
+# JWT-Token erhalten
+TOKEN=$(curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "demo", "password": "demo123"}' \
+  | jq -r '.token')
+
+echo "JWT Token: $TOKEN"
+```
+
+#### **3. 💼 Konto-Erstellung**
+```bash
+# Bankkonto erstellen
+curl -X POST http://localhost:8082/api/accounts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"owner": "demo", "balance": 1000.0}'
+```
+
+#### **4. 💸 Geld-Transfer**
+```bash
+# Zweites Konto erstellen
+curl -X POST http://localhost:8082/api/accounts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"owner": "demo", "balance": 500.0}'
+
+# Geld zwischen Konten überweisen
+curl -X POST http://localhost:8082/api/accounts/transfer \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"fromAccountId": 1, "toAccountId": 2, "amount": 100.0}'
+```
+
+#### **5. 📊 Dashboard-Ansicht**
+- **Frontend öffnen**: http://localhost:4200
+- **Anmelden** mit demo/demo123
+- **Konten anzeigen** und Überweisungen tätigen
+- **Transaktionshistorie** einsehen
+
+### **🎯 Demo-Features Highlights**
+
+#### **✨ Sofort verfügbar:**
+- ✅ **Keine .env Konfiguration** erforderlich
+- ✅ **Eingebaute Demo-Werte** für schnellen Start
+- ✅ **Vollständige Banking-Funktionalität**
+- ✅ **Interactive Swagger APIs** zum Testen
+- ✅ **Responsive Web-Interface**
+
+#### **🔧 Production-Ready Features:**
+- ✅ **JWT Authentication** mit sicheren Tokens
+- ✅ **ACID-konforme Transaktionen** 
+- ✅ **Health Checks** und Monitoring
+- ✅ **Docker Containerization**
+- ✅ **Microservices Architecture**
+
+### **🛑 Demo stoppen**
+
+```bash
+# Services stoppen
+docker-compose down
+
+# Mit Datenbereinigung
+docker-compose down -v
+```
 
 ---
 
