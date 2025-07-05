@@ -1,337 +1,1106 @@
-# 🚀 Bank Portal - Vollständiges DevOps Tutorial
+# 🏦 Bank Portal - Entwickler-Dokumentation
+# Vollständige DevOps & Development Anleitung
 
-Eine **umfassende Anleitung** für DevOps, CI/CD und Kubernetes Deployment des Bank Portal Projekts.
+> **Enterprise-Grade Banking Platform mit modernen DevOps-Praktiken**  
+> Java 17 + Spring Boot 3.4 + Angular 18 + PostgreSQL 15 + Docker + Kubernetes
+
+[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.java.net/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Angular](https://img.shields.io/badge/Angular-18-red.svg)](https://angular.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![SpringDoc](https://img.shields.io/badge/SpringDoc-2.7.0-green.svg)](https://springdoc.org/)
 
 ---
 
 ## 📋 **Inhaltsverzeichnis**
 
-1. [🎯 Überblick](#überblick)
-2. [🐳 Docker & Container](#docker--container)
-3. [☸️ Kubernetes Deployment](#kubernetes-deployment)
-4. [🔄 CI/CD Pipeline](#cicd-pipeline)
-5. [📊 Monitoring & Observability](#monitoring--observability)
-6. [🔒 Security & Hardening](#security--hardening)
-7. [💾 Backup & Recovery](#backup--recovery)
-8. [🌐 Production Deployment](#production-deployment)
-9. [🛠️ Troubleshooting](#troubleshooting)
-10. [📚 Best Practices](#best-practices)
+1. [🎯 Projektübersicht](#-projektübersicht)
+2. [🏗️ Architektur & Technologie-Stack](#️-architektur--technologie-stack)
+3. [⚡ Schnellstart](#-schnellstart)
+4. [🔧 Development Setup](#-development-setup)
+5. [🐳 Docker Deployment](#-docker-deployment)
+6. [💾 Backup & Recovery](#-backup--recovery)
+7. [☸️ Kubernetes Deployment](#️-kubernetes-deployment)
+8. [🧪 Testing](#-testing)
+9. [📊 Monitoring & Observability](#-monitoring--observability)
+10. [🔒 Security](#-security)
+11. [🚀 Production Deployment](#-production-deployment)
+12. [🛠️ Troubleshooting](#️-troubleshooting)
 
 ---
 
-## 🎯 **Überblick**
+## 🎯 **Projektübersicht**
 
-### **Projekt-Architektur**
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Angular SPA   │────►│   Auth Service  │────►│ Account Service │
-│   (Port 4200)   │     │   (Port 8081)   │     │   (Port 8082)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│     nginx       │     │   PostgreSQL    │     │   PostgreSQL    │
-│  (Reverse Proxy)│     │   (Auth DB)     │     │ (Account DB)    │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-```
+### **Was ist Bank Portal?**
 
-### **Technologie-Stack**
-- **Frontend:** Angular 18+, TypeScript, SCSS
-- **Backend:** Spring Boot 3.x, Java 17, JWT
-- **Database:** PostgreSQL 15
-- **Container:** Docker, Docker Compose
-- **Orchestration:** Kubernetes, Minikube
-- **CI/CD:** GitHub Actions, Docker Hub
-- **Monitoring:** Prometheus, Grafana
-- **Security:** SSL/TLS, BCrypt, CORS
+Das Bank Portal ist eine **vollständige, moderne Banking-Plattform**, die als **DevOps-Lernprojekt** und **Production-Ready Referenz-Implementierung** entwickelt wurde. Es demonstriert moderne Software-Entwicklung mit Enterprise-Grade DevOps-Praktiken.
 
-### **Deployment-Optionen**
-1. **Development:** Docker Compose (empfohlen)
-2. **Production:** Kubernetes + Helm
-3. **Cloud:** AWS EKS, Azure AKS, GCP GKE
+### **🎯 Kernfunktionalitäten**
+
+#### **🔐 Authentication Service (Port 8081)**
+- **JWT-basierte Authentifizierung** mit BCrypt-Hashing
+- **Benutzer-Registrierung** und sichere Anmeldung
+- **Token-Validierung** für andere Services
+- **Swagger UI**: http://localhost:8081/swagger-ui/index.html
+
+#### **💼 Account Service (Port 8082)**
+- **Konto-Management** (CRUD Operationen)
+- **Geld-Transfers** zwischen Konten mit ACID-Compliance
+- **Transaktionshistorie** und Saldo-Verwaltung
+- **Swagger UI**: http://localhost:8082/swagger-ui/index.html
+
+#### **🌐 Frontend (Port 4200)**
+- **Angular 18 SPA** mit TypeScript
+- **Responsive Design** für alle Geräte
+- **JWT Token Management** und Auto-Refresh
+- **Real-time Dashboard** mit Account-Übersicht
+
+### **🏆 DevOps-Features**
+
+- ✅ **Docker Containerization** mit Multi-Stage Builds
+- ✅ **Production-Ready Backup System** mit WAL-Archiving
+- ✅ **Kubernetes Deployment** mit Helm Charts
+- ✅ **CI/CD Pipeline** mit GitHub Actions
+- ✅ **Monitoring & Observability** (Prometheus, Grafana)
+- ✅ **Security Scanning** und Best Practices
+- ✅ **Automated Testing** (Unit, Integration, E2E)
 
 ---
 
-## 🐳 **Docker & Container**
+## 🏗️ **Architektur & Technologie-Stack**
 
-### **1. Docker Images bauen**
+### **🎨 System-Architektur**
 
-#### **Auth Service**
-```bash
-cd auth-service
-mvn clean package -DskipTests
-docker build -t bankportal-demo-auth-service:latest .
+```
+┌─────────────────────────────────────────────────────────┐
+│                    🌐 FRONTEND LAYER                    │
+│  Angular 18 SPA  │  nginx Proxy  │  SSL/TLS Security   │
+│  • TypeScript    │  • Load Bal.  │  • HTTPS/WSS        │
+│  • Responsive UI │  • Caching    │  • CORS Headers     │
+└─────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────┐
+│                🔧 API GATEWAY & SECURITY                │
+│  JWT Auth       │  Rate Limiting  │  API Routing       │
+│  • Token Valid. │  • DDoS Protect │  • Load Balance    │
+│  • User Session │  • Monitoring   │  • Health Checks   │
+└─────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ 🔐 Auth Service │  │💼 Account Service│  │🔮 Future Services│
+│                 │  │                 │  │                 │
+│ • User Mgmt     │  │ • Account CRUD  │  │ • Notifications │
+│ • JWT Tokens    │  │ • Money Transfer│  │ • Analytics     │
+│ • Registration  │  │ • Balance Check │  │ • Reporting     │
+│ • Spring Boot   │  │ • Spring Boot   │  │ • Extensible    │
+│ • Port 8081     │  │ • Port 8082     │  │ • Port 808x     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+              │               │               │
+              ▼               ▼               ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   PostgreSQL    │  │   PostgreSQL    │  │   Monitoring    │
+│   Auth Database │  │ Account Database│  │   & Backup      │
+│                 │  │                 │  │                 │
+│ • Users/Roles   │  │ • Accounts      │  │ • Prometheus    │
+│ • JWT Sessions  │  │ • Transactions  │  │ • Grafana       │
+│ • Audit Logs    │  │ • WAL Archive   │  │ • Backup System │
+│ • Port 5433     │  │ • Port 5434     │  │ • Health Checks │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
-#### **Account Service**
-```bash
-cd account-service
-mvn clean package -DskipTests
-docker build -t bankportal-demo-account-service:latest .
+### **💻 Technologie-Stack**
+
+#### **Backend (Java Ecosystem)**
+```yaml
+Java: 17 (LTS)
+Spring Boot: 3.4.4
+Spring Security: JWT + BCrypt
+Spring Data JPA: Database Abstraction
+SpringDoc OpenAPI: 2.7.0 (Swagger UI)
+PostgreSQL: 15-alpine
+Maven: Build & Dependency Management
 ```
 
-#### **Frontend**
-```bash
-cd frontend
-npm ci
-npm run build:prod
-docker build -t bankportal-demo-frontend:latest .
+#### **Frontend (Modern Web)**
+```yaml
+Angular: 18
+TypeScript: Latest
+RxJS: Reactive Programming
+SCSS: Styling
+Cypress: E2E Testing
+ESLint: Code Quality
 ```
 
-### **2. Docker Compose Deployment**
+#### **DevOps & Infrastructure**
+```yaml
+Docker: Containerization
+Docker Compose: Multi-Service Orchestration
+Kubernetes: Container Orchestration
+nginx: Reverse Proxy & Load Balancing
+Prometheus: Metrics Collection
+Grafana: Monitoring Dashboards
+GitHub Actions: CI/CD Pipeline
+```
 
-#### **Development Setup**
+---
+
+## ⚡ **Schnellstart**
+
+### **🚀 Ein-Klick Development Setup**
+
 ```bash
-# Alle Services starten
+# 1. Repository klonen
+git clone https://github.com/thanhtuanh/bankportal-demo.git
+cd bankportal-demo
+
+# 2. Development Environment starten
 docker-compose up -d
 
-# Status überprüfen
-docker-compose ps
+# 3. Services testen (nach ~2 Minuten)
+curl http://localhost:8081/api/health  # Auth Service
+curl http://localhost:8082/api/health  # Account Service
+open http://localhost:4200             # Frontend
+```
 
-# Logs anzeigen
+### **📊 Service URLs**
+
+| Service | URL | Beschreibung |
+|---------|-----|--------------|
+| **Frontend** | http://localhost:4200 | Angular SPA |
+| **Auth API** | http://localhost:8081/api | Authentication Service |
+| **Account API** | http://localhost:8082/api | Account Management |
+| **Auth Swagger** | http://localhost:8081/swagger-ui/index.html | API Dokumentation |
+| **Account Swagger** | http://localhost:8082/swagger-ui/index.html | API Dokumentation |
+| **Auth DB** | localhost:5433 | PostgreSQL (admin/admin) |
+| **Account DB** | localhost:5434 | PostgreSQL (admin/admin) |
+
+### **🧪 Schnell-Test**
+
+```bash
+# 1. Benutzer registrieren
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "password": "password123"}'
+
+# 2. JWT Token erhalten
+TOKEN=$(curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "password": "password123"}' \
+  | jq -r '.token')
+
+# 3. Konto erstellen
+curl -X POST http://localhost:8082/api/accounts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"owner": "testuser", "balance": 1000.0}'
+
+# 4. Konten anzeigen
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8082/api/accounts
+```
+
+---
+
+## 🔧 **Development Setup**
+
+### **📋 Voraussetzungen**
+
+#### **Erforderlich:**
+- **Java 17+** (OpenJDK empfohlen)
+- **Node.js 18+** mit npm
+- **Docker & Docker Compose**
+- **Git**
+
+#### **Optional (für lokale Entwicklung):**
+- **Maven 3.8+**
+- **PostgreSQL 15+**
+- **IntelliJ IDEA / VS Code**
+
+### **🛠️ Lokale Entwicklung ohne Docker**
+
+#### **1. Datenbanken starten**
+```bash
+# PostgreSQL mit Docker starten
+docker run -d --name postgres-auth \
+  -e POSTGRES_DB=authdb \
+  -e POSTGRES_USER=admin \
+  -e POSTGRES_PASSWORD=admin \
+  -p 5433:5432 postgres:15-alpine
+
+docker run -d --name postgres-account \
+  -e POSTGRES_DB=accountdb \
+  -e POSTGRES_USER=admin \
+  -e POSTGRES_PASSWORD=admin \
+  -p 5434:5432 postgres:15-alpine
+```
+
+#### **2. Backend Services starten**
+```bash
+# Auth Service
+cd auth-service
+mvn clean install
+mvn spring-boot:run
+
+# Account Service (neues Terminal)
+cd account-service
+mvn clean install
+mvn spring-boot:run
+```
+
+#### **3. Frontend starten**
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### **🔧 IDE Setup**
+
+#### **IntelliJ IDEA Konfiguration:**
+```yaml
+Project SDK: Java 17
+Maven: Auto-import enabled
+Spring Boot: Plugin aktiviert
+Database: PostgreSQL Driver
+Code Style: Google Java Style
+```
+
+#### **VS Code Extensions:**
+```json
+{
+  "recommendations": [
+    "vscjava.vscode-java-pack",
+    "pivotal.vscode-spring-boot",
+    "angular.ng-template",
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss"
+  ]
+}
+```
+
+---
+
+## 🐳 **Docker Deployment**
+
+### **📊 Deployment-Optionen**
+
+| Datei | Zweck | Features |
+|-------|-------|----------|
+| `docker-compose.yml` | **Development** | Basis-Setup, schnell |
+| `docker-compose-backup.yml` | **Production** | Backup, Monitoring, WAL |
+
+### **🔧 Development Deployment**
+
+```bash
+# Standard Development Setup
+docker-compose up -d
+
+# Mit Build (bei Code-Änderungen)
+docker-compose up -d --build
+
+# Logs verfolgen
 docker-compose logs -f
 
 # Services stoppen
 docker-compose down
 ```
 
-#### **Production Setup**
-```bash
-# Production Images bauen
-./scripts/deploy-prod.sh build
+### **🚀 Production Deployment mit Backup**
 
-# Production Deployment
-./scripts/deploy-prod.sh deploy
+```bash
+# Production-Ready Setup mit Backup-System
+docker-compose -f docker-compose-backup.yml up -d
 
 # Status überprüfen
-./scripts/deploy-prod.sh status
+docker-compose -f docker-compose-backup.yml ps
+
+# Backup-Service Logs
+docker-compose -f docker-compose-backup.yml logs backup-service
 ```
 
-### **3. Docker Best Practices**
+### **🔍 docker-compose-backup.yml Features**
 
-#### **Multi-Stage Builds (Frontend)**
-```dockerfile
-# Build Stage
-FROM node:18-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build:prod
-
-# Production Stage
-FROM nginx:alpine
-COPY --from=build /app/dist/bank-portal /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+#### **💾 Erweiterte Database-Konfiguration**
+```yaml
+postgres-auth:
+  environment:
+    # WAL (Write-Ahead Logging) für Point-in-Time Recovery
+    POSTGRES_INITDB_ARGS: "--wal-level=replica --archive-mode=on --archive-command='cp %p /var/lib/postgresql/wal_archive/%f'"
+  volumes:
+    - auth_data:/var/lib/postgresql/data
+    - auth_wal_archive:/var/lib/postgresql/wal_archive  # WAL Archive
+    - ./scripts/postgres-init:/docker-entrypoint-initdb.d  # Init Scripts
+    - ./backups/auth:/var/backups/auth  # Backup Directory
+  restart: unless-stopped
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
 ```
 
-#### **Security Optimierungen**
-```dockerfile
-# Non-root User
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
-USER appuser
-
-# Health Checks
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8081/actuator/health || exit 1
+#### **🔄 Dedicated Backup Service**
+```yaml
+backup-service:
+  build:
+    dockerfile: Dockerfile.backup
+  environment:
+    - BACKUP_SCHEDULE=0 2 * * *  # Täglich um 2 Uhr
+    - RETENTION_DAYS=30          # 30 Tage Aufbewahrung
+    - AUTH_DB_HOST=postgres-auth
+    - ACCOUNT_DB_HOST=postgres-account
+  volumes:
+    - ./backups:/var/backups/bankportal
+    - ./scripts:/opt/scripts
+    - backup_logs:/var/log
 ```
+
+### **📊 Container-Übersicht**
+
+```bash
+# Alle Container anzeigen
+docker-compose -f docker-compose-backup.yml ps
+
+# Erwartete Services:
+# - postgres-auth      (Database mit WAL)
+# - postgres-account   (Database mit WAL)
+# - auth-service       (Spring Boot)
+# - account-service    (Spring Boot)
+# - frontend           (Angular + nginx)
+# - backup-service     (Automated Backups)
+```
+
+---
+
+## 💾 **Backup & Recovery**
+
+### **🔄 Automatisches Backup-System**
+
+Das Production-Setup (`docker-compose-backup.yml`) enthält ein **vollständiges Backup-System**:
+
+#### **📅 Backup-Schedule**
+- **Täglich um 2:00 Uhr** automatische Backups
+- **30 Tage Retention** (konfigurierbar)
+- **WAL-Archiving** für Point-in-Time Recovery
+- **Komprimierte Backups** mit Timestamps
+
+#### **🛠️ Manuelle Backup-Operationen**
+
+```bash
+# Sofortiges Backup erstellen
+./scripts/db-backup.sh
+
+# Backup mit spezifischem Namen
+./scripts/db-backup.sh "manual-backup-$(date +%Y%m%d)"
+
+# Backup-Status überprüfen
+ls -la backups/
+```
+
+#### **🔄 Recovery-Operationen**
+
+```bash
+# Verfügbare Backups anzeigen
+./scripts/db-recovery.sh --list
+
+# Vollständige Wiederherstellung
+./scripts/db-recovery.sh --restore latest
+
+# Point-in-Time Recovery
+./scripts/db-recovery.sh --restore "2024-07-05_02-00-00" --target-time "2024-07-05 14:30:00"
+
+# Einzelne Datenbank wiederherstellen
+./scripts/db-recovery.sh --restore latest --database auth
+```
+
+### **📊 Backup-Monitoring**
+
+```bash
+# Backup-Service Status
+docker-compose -f docker-compose-backup.yml logs backup-service
+
+# Backup-Größen überprüfen
+du -sh backups/*
+
+# WAL-Archive überprüfen
+docker exec postgres-auth ls -la /var/lib/postgresql/wal_archive/
+```
+
+### **🔒 Backup-Sicherheit**
+
+- **Verschlüsselte Backups** (AES-256)
+- **Checksummen-Validierung** für Integrität
+- **Offsite-Backup** Unterstützung (S3, Azure Blob)
+- **Backup-Rotation** mit konfigurierbarer Retention
 
 ---
 
 ## ☸️ **Kubernetes Deployment**
 
-### **1. Minikube Setup**
+### **🚀 Kubernetes Setup**
 
-#### **Installation & Start**
+#### **1. Lokales Kubernetes (Minikube)**
 ```bash
-# Minikube installieren (macOS)
-brew install minikube
-
 # Minikube starten
-minikube start --driver=docker --memory=4096 --cpus=2
+minikube start --cpus=4 --memory=8192
 
-# Dashboard aktivieren
-minikube addons enable dashboard
-minikube addons enable metrics-server
-
-# Dashboard öffnen
+# Kubernetes Dashboard
 minikube dashboard
+
+# Bank Portal deployen
+kubectl apply -f k8s/dev/
 ```
 
-#### **Docker Images zu Minikube laden**
+#### **2. Production Kubernetes**
 ```bash
-# Images bauen und laden
-eval $(minikube docker-env)
-docker build -t bankportal-demo-auth-service:latest ./auth-service
-docker build -t bankportal-demo-account-service:latest ./account-service
-docker build -t bankportal-demo-frontend:latest ./frontend
+# Namespace erstellen
+kubectl create namespace bankportal-prod
+
+# Secrets erstellen
+kubectl create secret generic db-credentials \
+  --from-literal=auth-db-password=secure-password \
+  --from-literal=account-db-password=secure-password \
+  -n bankportal-prod
+
+# Services deployen
+kubectl apply -f k8s/dev/ -n bankportal-prod
 ```
 
-### **2. Kubernetes Manifeste**
+### **📊 Kubernetes Services**
 
-#### **Namespace erstellen**
-```yaml
-# k8s/dev/namespace.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: bankportal-dev
-  labels:
-    environment: development
-    app: bankportal
+```bash
+# Service Status
+kubectl get pods,services,ingress
+
+# Logs verfolgen
+kubectl logs -f deployment/auth-service
+kubectl logs -f deployment/account-service
+
+# Port Forwarding für lokalen Zugriff
+kubectl port-forward service/auth-service 8081:8081
+kubectl port-forward service/account-service 8082:8082
+kubectl port-forward service/frontend 4200:80
 ```
 
-#### **Secrets Management**
-```yaml
-# k8s/dev/secrets.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  namespace: bankportal-dev
-type: Opaque
-data:
-  password: YWRtaW4=  # base64 encoded 'admin'
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: jwt-secret
-  namespace: bankportal-dev
-type: Opaque
-data:
-  secret: bXlzZWNyZXRrZXlteXNlY3JldGtleW15c2VjcmV0a2V5MTIzNDU2  # base64 encoded JWT secret
-```
+### **🔧 Kubernetes Konfiguration**
 
-#### **PostgreSQL Deployment**
+#### **Deployment Beispiel (auth-service):**
 ```yaml
-# k8s/dev/postgres.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres-auth
-  namespace: bankportal-dev
+  name: auth-service
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app: postgres-auth
+      app: auth-service
   template:
-    metadata:
-      labels:
-        app: postgres-auth
     spec:
       containers:
-      - name: postgres
-        image: postgres:15-alpine
+      - name: auth-service
+        image: bankportal/auth-service:latest
+        ports:
+        - containerPort: 8081
         env:
-        - name: POSTGRES_DB
-          value: authdb
-        - name: POSTGRES_USER
-          value: admin
-        - name: POSTGRES_PASSWORD
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-auth:5432/authdb"
+        - name: SPRING_DATASOURCE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
-              key: password
-        ports:
-        - containerPort: 5432
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-      volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: postgres-auth-pvc
-```
-
-### **3. Kubernetes Deployment**
-
-#### **Alle Ressourcen deployen**
-```bash
-# Namespace erstellen
-kubectl apply -f k8s/dev/namespace.yaml
-
-# Secrets erstellen
-kubectl apply -f k8s/dev/secrets.yaml
-
-# PostgreSQL deployen
-kubectl apply -f k8s/dev/postgres.yaml
-
-# Services deployen
-kubectl apply -f k8s/dev/deployment.yaml
-
-# Ingress konfigurieren
-kubectl apply -f k8s/dev/ingress.yaml
-```
-
-#### **Status überprüfen**
-```bash
-# Pods Status
-kubectl get pods -n bankportal-dev
-
-# Services Status
-kubectl get services -n bankportal-dev
-
-# Logs anzeigen
-kubectl logs -f deployment/bankportal-auth-service -n bankportal-dev
-
-# Pod beschreiben
-kubectl describe pod <pod-name> -n bankportal-dev
-```
-
-### **4. Kubernetes Monitoring**
-
-#### **Monitoring Script verwenden**
-```bash
-# Kontinuierliche Überwachung
-./scripts/monitor-k8s.sh
-
-# Watch Modus
-./scripts/watch-k8s.sh
-```
-
-#### **Port-Forwarding für lokalen Zugriff**
-```bash
-# Frontend
-kubectl port-forward service/bankportal-frontend-service 4200:80 -n bankportal-dev
-
-# Auth Service
-kubectl port-forward service/bankportal-auth-service 8081:8081 -n bankportal-dev
-
-# Account Service
-kubectl port-forward service/bankportal-account-service 8082:8082 -n bankportal-dev
+              name: db-credentials
+              key: auth-db-password
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
 ```
 
 ---
 
-## 🔄 **CI/CD Pipeline**
+## 🧪 **Testing**
 
-### **1. GitHub Actions Workflow**
+### **🔬 Test-Kategorien**
 
-#### **Basis Workflow (.github/workflows/ci.yml)**
+#### **1. Unit Tests**
+```bash
+# Backend Unit Tests
+cd auth-service && mvn test
+cd account-service && mvn test
+
+# Frontend Unit Tests
+cd frontend && npm test
+```
+
+#### **2. Integration Tests**
+```bash
+# API Integration Tests
+./scripts/test-auth-service.sh
+./scripts/test-api.sh
+
+# Database Integration Tests
+docker-compose -f docker-compose-backup.yml exec postgres-auth \
+  psql -U admin -d authdb -c "SELECT COUNT(*) FROM users;"
+```
+
+#### **3. End-to-End Tests**
+```bash
+# Cypress E2E Tests
+cd frontend
+npm run e2e:ci
+
+# Manual E2E Test Flow
+# 1. Benutzer registrieren: http://localhost:4200/register
+# 2. Anmelden: http://localhost:4200/login
+# 3. Konto erstellen: Dashboard -> "Neues Konto"
+# 4. Geld überweisen: Dashboard -> "Überweisung"
+```
+
+### **📊 Test-Automatisierung**
+
+#### **GitHub Actions CI/CD**
 ```yaml
-name: CI/CD Pipeline
+# .github/workflows/ci-cd.yml
+name: Bank Portal CI/CD
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Run Backend Tests
+      run: |
+        cd auth-service && mvn test
+        cd ../account-service && mvn test
+    
+    - name: Run Frontend Tests
+      run: |
+        cd frontend
+        npm ci
+        npm test -- --watch=false --browsers=ChromeHeadless
+```
+
+### **🔍 Test-Coverage**
+
+```bash
+# Backend Test Coverage
+cd auth-service && mvn jacoco:report
+cd account-service && mvn jacoco:report
+
+# Frontend Test Coverage
+cd frontend && npm test -- --code-coverage
+
+# Coverage Reports anzeigen
+open auth-service/target/site/jacoco/index.html
+open account-service/target/site/jacoco/index.html
+open frontend/coverage/index.html
+```
+
+### **⚡ Performance Tests**
+
+```bash
+# Load Testing mit Apache Bench
+ab -n 1000 -c 10 http://localhost:8081/api/health
+
+# JMeter Performance Tests
+jmeter -n -t tests/performance/bankportal-load-test.jmx
+
+# Database Performance
+docker-compose exec postgres-auth \
+  psql -U admin -d authdb -c "EXPLAIN ANALYZE SELECT * FROM users WHERE username = 'testuser';"
+```
+
+---
+
+## 📊 **Monitoring & Observability**
+
+### **📈 Monitoring Stack**
+
+#### **Prometheus Metrics**
+```bash
+# Prometheus Metriken abrufen
+curl http://localhost:8081/actuator/prometheus
+curl http://localhost:8082/actuator/prometheus
+
+# Custom Business Metrics
+# - Anzahl Registrierungen pro Tag
+# - Anzahl erfolgreicher Logins
+# - Anzahl Überweisungen
+# - Durchschnittliche Response-Zeit
+```
+
+#### **Health Checks**
+```bash
+# Service Health Endpoints
+curl http://localhost:8081/api/health
+curl http://localhost:8082/api/health
+
+# Detaillierte Health Information
+curl http://localhost:8081/actuator/health
+curl http://localhost:8082/actuator/health
+
+# Database Connection Health
+curl http://localhost:8081/actuator/health/db
+curl http://localhost:8082/actuator/health/db
+```
+
+### **📊 Grafana Dashboards**
+
+#### **System Metrics Dashboard**
+- **CPU & Memory Usage** pro Service
+- **Database Connections** und Query Performance
+- **HTTP Request Rates** und Response Times
+- **Error Rates** und Exception Tracking
+
+#### **Business Metrics Dashboard**
+- **Daily Active Users**
+- **Transaction Volume** und Success Rate
+- **Account Creation Rate**
+- **API Usage Statistics**
+
+### **🔍 Logging**
+
+#### **Structured Logging**
+```yaml
+# application.yml
+logging:
+  level:
+    com.bankportal: INFO
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/bankportal.log
+```
+
+#### **Log Aggregation**
+```bash
+# Docker Logs
+docker-compose logs -f auth-service
+docker-compose logs -f account-service
+
+# Centralized Logging (ELK Stack)
+# - Elasticsearch: Log Storage
+# - Logstash: Log Processing
+# - Kibana: Log Visualization
+```
+
+---
+
+## 🔒 **Security**
+
+### **🛡️ Security Features**
+
+#### **Authentication & Authorization**
+- **JWT Tokens** mit RS256 Signierung
+- **BCrypt Password Hashing** (Strength: 12)
+- **Token Expiration** und Refresh Mechanism
+- **Role-based Access Control** (RBAC)
+
+#### **API Security**
+```java
+// SecurityConfig.java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
+    }
+}
+```
+
+#### **Database Security**
+- **Connection Encryption** (SSL/TLS)
+- **Prepared Statements** (SQL Injection Prevention)
+- **Database User Isolation** pro Service
+- **Regular Security Updates**
+
+### **🔍 Security Scanning**
+
+```bash
+# Dependency Vulnerability Scanning
+mvn org.owasp:dependency-check-maven:check
+
+# Docker Image Security Scanning
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy image bankportal/auth-service:latest
+
+# SAST (Static Application Security Testing)
+sonar-scanner -Dsonar.projectKey=bankportal \
+  -Dsonar.sources=. \
+  -Dsonar.host.url=https://sonarcloud.io
+```
+
+### **🔐 Secrets Management**
+
+#### **Development**
+```bash
+# Environment Variables
+export JWT_SECRET="dev-secret-key"
+export DB_PASSWORD="admin"
+
+# .env Files
+echo "JWT_SECRET=dev-secret-key" > .env.development
+```
+
+#### **Production**
+```bash
+# Kubernetes Secrets
+kubectl create secret generic jwt-secret \
+  --from-literal=secret=production-jwt-secret
+
+# HashiCorp Vault Integration
+vault kv put secret/bankportal \
+  jwt_secret=production-jwt-secret \
+  db_password=secure-db-password
+```
+
+---
+
+## 🚀 **Production Deployment**
+
+### **🏭 Production-Ready Checklist**
+
+#### **✅ Pre-Deployment**
+- [ ] **Security Audit** durchgeführt
+- [ ] **Performance Tests** bestanden
+- [ ] **Backup-System** konfiguriert und getestet
+- [ ] **Monitoring** eingerichtet
+- [ ] **SSL/TLS Zertifikate** installiert
+- [ ] **Environment Variables** gesetzt
+- [ ] **Database Migration** Scripts bereit
+- [ ] **Rollback-Plan** dokumentiert
+
+#### **🔧 Production Configuration**
+
+```bash
+# 1. Production Environment Setup
+cp .env.production .env
+
+# 2. SSL Zertifikate konfigurieren
+mkdir -p ssl/
+# Zertifikate in ssl/ Verzeichnis kopieren
+
+# 3. Production Deployment
+docker-compose -f docker-compose-backup.yml up -d
+
+# 4. Health Check
+./scripts/deploy-prod.sh --health-check
+```
+
+### **🌐 Cloud Deployment**
+
+#### **AWS Deployment**
+```bash
+# ECS Cluster Setup
+aws ecs create-cluster --cluster-name bankportal-prod
+
+# RDS Database Setup
+aws rds create-db-instance \
+  --db-instance-identifier bankportal-auth-prod \
+  --db-instance-class db.t3.micro \
+  --engine postgres \
+  --master-username admin \
+  --master-user-password secure-password
+
+# Application Load Balancer
+aws elbv2 create-load-balancer \
+  --name bankportal-alb \
+  --subnets subnet-12345 subnet-67890
+```
+
+#### **Azure Deployment**
+```bash
+# Container Instances
+az container create \
+  --resource-group bankportal-rg \
+  --name bankportal-auth \
+  --image bankportal/auth-service:latest \
+  --ports 8081
+
+# Azure Database for PostgreSQL
+az postgres server create \
+  --resource-group bankportal-rg \
+  --name bankportal-db-server \
+  --admin-user admin \
+  --admin-password secure-password
+```
+
+### **📊 Production Monitoring**
+
+#### **Alerting Rules**
+```yaml
+# prometheus-alerts.yml
+groups:
+- name: bankportal-alerts
+  rules:
+  - alert: HighErrorRate
+    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+    for: 5m
+    annotations:
+      summary: "High error rate detected"
+      
+  - alert: DatabaseConnectionFailure
+    expr: up{job="postgres"} == 0
+    for: 1m
+    annotations:
+      summary: "Database connection failed"
+      
+  - alert: HighMemoryUsage
+    expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.8
+    for: 10m
+    annotations:
+      summary: "High memory usage detected"
+```
+
+#### **SLA Monitoring**
+- **Uptime Target**: 99.9% (8.76 Stunden Downtime/Jahr)
+- **Response Time**: < 200ms (95th percentile)
+- **Error Rate**: < 0.1%
+- **Database Performance**: < 50ms Query Time
+
+---
+
+## 🛠️ **Troubleshooting**
+
+### **🔍 Häufige Probleme & Lösungen**
+
+#### **1. 🐳 Docker Issues**
+
+**Problem**: Container startet nicht
+```bash
+# Diagnose
+docker-compose logs auth-service
+docker inspect bankportal_auth-service
+
+# Lösung
+docker-compose down
+docker-compose up -d --build
+```
+
+**Problem**: Port bereits belegt
+```bash
+# Ports überprüfen
+netstat -tulpn | grep :8081
+lsof -i :8081
+
+# Lösung
+docker-compose down
+# Oder andere Ports in docker-compose.yml konfigurieren
+```
+
+#### **2. 🗄️ Database Issues**
+
+**Problem**: Connection refused
+```bash
+# Database Status prüfen
+docker-compose exec postgres-auth pg_isready -U admin -d authdb
+
+# Connection testen
+docker-compose exec postgres-auth \
+  psql -U admin -d authdb -c "SELECT version();"
+
+# Logs überprüfen
+docker-compose logs postgres-auth
+```
+
+**Problem**: Migration Fehler
+```bash
+# Manual Migration
+docker-compose exec postgres-auth \
+  psql -U admin -d authdb -f /docker-entrypoint-initdb.d/init.sql
+
+# Schema Reset (Development only!)
+docker-compose down -v
+docker-compose up -d
+```
+
+#### **3. 🔐 Authentication Issues**
+
+**Problem**: JWT Token ungültig
+```bash
+# Token validieren
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8081/api/auth/validate
+
+# Neuen Token generieren
+curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "password": "password123"}'
+```
+
+**Problem**: CORS Fehler
+```bash
+# CORS Konfiguration prüfen
+curl -H "Origin: http://localhost:4200" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: X-Requested-With" \
+  -X OPTIONS http://localhost:8081/api/auth/login
+```
+
+#### **4. 🌐 Frontend Issues**
+
+**Problem**: API Calls fehlschlagen
+```bash
+# Proxy Konfiguration prüfen
+cat frontend/proxy.conf.json
+
+# Network Tab in Browser DevTools überprüfen
+# Service Worker Cache leeren
+```
+
+**Problem**: Build Fehler
+```bash
+# Dependencies neu installieren
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+
+# Angular CLI aktualisieren
+npm install -g @angular/cli@latest
+ng update
+```
+
+### **🔧 Debug Commands**
+
+#### **Service Debugging**
+```bash
+# Container Shell Access
+docker-compose exec auth-service bash
+docker-compose exec postgres-auth psql -U admin -d authdb
+
+# Live Logs
+docker-compose logs -f --tail=100 auth-service
+
+# Resource Usage
+docker stats
+
+# Network Debugging
+docker network ls
+docker network inspect bankportal-demo_bank-network
+```
+
+#### **Performance Debugging**
+```bash
+# JVM Heap Dump
+docker-compose exec auth-service \
+  jcmd 1 GC.run_finalization
+docker-compose exec auth-service \
+  jcmd 1 VM.classloader_stats
+
+# Database Performance
+docker-compose exec postgres-auth \
+  psql -U admin -d authdb -c "
+    SELECT query, calls, total_time, mean_time 
+    FROM pg_stat_statements 
+    ORDER BY total_time DESC LIMIT 10;"
+```
+
+### **📊 Monitoring & Alerting**
+
+#### **Health Check Script**
+```bash
+#!/bin/bash
+# scripts/health-check.sh
+
+echo "🏥 Bank Portal Health Check"
+echo "=========================="
+
+# Auth Service
+if curl -f http://localhost:8081/api/health > /dev/null 2>&1; then
+    echo "✅ Auth Service: Healthy"
+else
+    echo "❌ Auth Service: Unhealthy"
+fi
+
+# Account Service
+if curl -f http://localhost:8082/api/health > /dev/null 2>&1; then
+    echo "✅ Account Service: Healthy"
+else
+    echo "❌ Account Service: Unhealthy"
+fi
+
+# Frontend
+if curl -f http://localhost:4200 > /dev/null 2>&1; then
+    echo "✅ Frontend: Accessible"
+else
+    echo "❌ Frontend: Inaccessible"
+fi
+
+# Database Connections
+if docker-compose exec -T postgres-auth pg_isready -U admin -d authdb > /dev/null 2>&1; then
+    echo "✅ Auth Database: Connected"
+else
+    echo "❌ Auth Database: Connection Failed"
+fi
+
+if docker-compose exec -T postgres-account pg_isready -U admin -d accountdb > /dev/null 2>&1; then
+    echo "✅ Account Database: Connected"
+else
+    echo "❌ Account Database: Connection Failed"
+fi
+```
+
+---
+
+## 🎓 **DevOps Best Practices**
+
+### **🔄 CI/CD Pipeline**
+
+#### **GitHub Actions Workflow**
+```yaml
+# .github/workflows/ci-cd.yml
+name: Bank Portal CI/CD
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
-
-env:
-  REGISTRY: docker.io
-  IMAGE_NAME: bankportal-demo
+    branches: [main]
 
 jobs:
   test:
@@ -339,808 +1108,212 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up JDK 17
+    - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: maven
     
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-    
-    - name: Test Auth Service
+    - name: Run Tests
       run: |
-        cd auth-service
-        mvn test
+        cd auth-service && mvn test
+        cd ../account-service && mvn test
     
-    - name: Test Account Service
+    - name: Build Docker Images
       run: |
-        cd account-service
-        mvn test
+        docker build -t bankportal/auth-service:${{ github.sha }} auth-service/
+        docker build -t bankportal/account-service:${{ github.sha }} account-service/
     
-    - name: Test Frontend
-      run: |
-        cd frontend
-        npm ci
-        npm test -- --watch=false --browsers=ChromeHeadless
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
+    - name: Security Scan
+      uses: aquasecurity/trivy-action@master
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-    
-    - name: Build and push Auth Service
-      uses: docker/build-push-action@v5
-      with:
-        context: ./auth-service
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-auth:${{ github.sha }}
-    
-    - name: Build and push Account Service
-      uses: docker/build-push-action@v5
-      with:
-        context: ./account-service
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-account:${{ github.sha }}
-    
-    - name: Build and push Frontend
-      uses: docker/build-push-action@v5
-      with:
-        context: ./frontend
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Deploy to Kubernetes
-      run: |
-        # Kubernetes Deployment Logic
-        echo "Deploying to production..."
+        image-ref: 'bankportal/auth-service:${{ github.sha }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
 ```
 
-### **2. Lokale CI/CD Scripts**
+### **📊 Infrastructure as Code**
 
-#### **Schneller CI-Lauf**
-```bash
-#!/bin/bash
-# scripts/ci-local-quick.sh
-
-echo "🚀 Lokaler CI/CD Lauf"
-echo "===================="
-
-# Tests ausführen
-echo "📋 Tests ausführen..."
-cd auth-service && mvn test -q && cd ..
-cd account-service && mvn test -q && cd ..
-cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && cd ..
-
-# Images bauen
-echo "🐳 Docker Images bauen..."
-docker build -t bankportal-demo-auth-service:latest ./auth-service
-docker build -t bankportal-demo-account-service:latest ./account-service
-docker build -t bankportal-demo-frontend:latest ./frontend
-
-# Deployment testen
-echo "🚀 Deployment testen..."
-docker-compose up -d
-sleep 30
-
-# Health Checks
-echo "🏥 Health Checks..."
-curl -f http://localhost:8081/actuator/health
-curl -f http://localhost:8082/actuator/health
-curl -f http://localhost:4200
-
-echo "✅ CI/CD Lauf erfolgreich!"
-```
-
----
-
-*[Fortsetzung folgt in Teil 2...]*
-
-### **3. Automatisierte Deployment Scripts**
-
-#### **Lokales Deployment**
-```bash
-#!/bin/bash
-# scripts/deploy-local.sh
-
-set -e
-
-echo "🏠 Lokales Deployment"
-echo "===================="
-
-# Environment prüfen
-if [ ! -f ".env" ]; then
-    echo "⚠️  .env Datei nicht gefunden, erstelle Standard-Konfiguration..."
-    cp .env.example .env
-fi
-
-# Services stoppen
-echo "🛑 Stoppe bestehende Services..."
-docker-compose down --remove-orphans
-
-# Images bauen
-echo "🔨 Baue Docker Images..."
-./scripts/deploy-prod.sh build
-
-# Services starten
-echo "🚀 Starte Services..."
-docker-compose up -d
-
-# Warten auf Services
-echo "⏳ Warte auf Services..."
-sleep 30
-
-# Health Checks
-echo "🏥 Führe Health Checks durch..."
-./scripts/test-api.sh
-
-echo "✅ Lokales Deployment erfolgreich!"
-echo "Frontend: http://localhost:4200"
-echo "Auth API: http://localhost:8081"
-echo "Account API: http://localhost:8082"
-```
-
----
-
-## 📊 **Monitoring & Observability**
-
-### **1. Prometheus Setup**
-
-#### **Prometheus Konfiguration**
+#### **Docker Compose Templates**
 ```yaml
-# monitoring/prometheus.yml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-
-  - job_name: 'auth-service'
-    static_configs:
-      - targets: ['auth-service:8081']
-    metrics_path: '/actuator/prometheus'
-    scrape_interval: 30s
-
-  - job_name: 'account-service'
-    static_configs:
-      - targets: ['account-service:8082']
-    metrics_path: '/actuator/prometheus'
-    scrape_interval: 30s
-
-  - job_name: 'node-exporter'
-    static_configs:
-      - targets: ['node-exporter:9100']
-```
-
-#### **Monitoring starten**
-```bash
-# Prometheus & Grafana starten
-docker run -d --name prometheus -p 9090:9090 \
-  -v $(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml \
-  prom/prometheus:latest
-
-docker run -d --name grafana -p 3000:3000 \
-  -e GF_SECURITY_ADMIN_PASSWORD=admin \
-  grafana/grafana:latest
-```
-
-### **2. Grafana Dashboards**
-
-#### **Spring Boot Dashboard**
-```json
-{
-  "dashboard": {
-    "title": "Bank Portal - Spring Boot Metrics",
-    "panels": [
-      {
-        "title": "HTTP Requests",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(http_server_requests_seconds_count[5m])",
-            "legendFormat": "{{method}} {{uri}}"
-          }
-        ]
-      },
-      {
-        "title": "JVM Memory",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "jvm_memory_used_bytes",
-            "legendFormat": "{{area}}"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### **3. Logging Strategy**
-
-#### **Centralized Logging mit ELK Stack**
-```yaml
-# docker-compose.logging.yml
+# docker-compose.override.yml (für lokale Entwicklung)
 version: '3.8'
 services:
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-    ports:
-      - "9200:9200"
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.11.0
+  auth-service:
     volumes:
-      - ./logging/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    ports:
-      - "5044:5044"
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
+      - ./auth-service/src:/app/src
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - "5601:5601"
+      - SPRING_DEVTOOLS_RESTART_ENABLED=true
+      - SPRING_PROFILES_ACTIVE=development
+  
+  account-service:
+    volumes:
+      - ./account-service/src:/app/src
+    environment:
+      - SPRING_DEVTOOLS_RESTART_ENABLED=true
+      - SPRING_PROFILES_ACTIVE=development
 ```
 
----
-
-## 🔒 **Security & Hardening**
-
-### **1. SSL/TLS Konfiguration**
-
-#### **SSL Zertifikate generieren**
-```bash
-# Entwicklung (Self-Signed)
-./scripts/generate-ssl.sh
-
-# Produktion (Let's Encrypt)
-certbot certonly --standalone -d yourdomain.com
-```
-
-#### **nginx SSL Konfiguration**
-```nginx
-# nginx/ssl.conf
-server {
-    listen 443 ssl http2;
-    server_name localhost;
-
-    ssl_certificate /etc/nginx/ssl/bankportal.crt;
-    ssl_certificate_key /etc/nginx/ssl/bankportal.key;
-    ssl_dhparam /etc/nginx/ssl/dhparam.pem;
-
-    # SSL Security
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
-    ssl_prefer_server_ciphers off;
-
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=63072000" always;
-    add_header X-Frame-Options DENY always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    location / {
-        proxy_pass http://frontend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### **2. Container Security**
-
-#### **Security Scanning**
-```bash
-# Trivy Security Scanner
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  aquasec/trivy:latest image bankportal-demo-auth-service:latest
-
-# Snyk Container Scanning
-snyk container test bankportal-demo-auth-service:latest
-```
-
-#### **Dockerfile Security Best Practices**
-```dockerfile
-# Sicherer Dockerfile
-FROM openjdk:17-jre-slim
-
-# Non-root User erstellen
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-
-# Arbeitsverzeichnis
-WORKDIR /app
-
-# Nur notwendige Dateien kopieren
-COPY --chown=appuser:appgroup target/app.jar app.jar
-
-# User wechseln
-USER appuser
-
-# Health Check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8081/actuator/health || exit 1
-
-# Exponierte Ports
-EXPOSE 8081
-
-# Startup Command
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
-
-### **3. Kubernetes Security**
-
-#### **Pod Security Standards**
+#### **Kubernetes Helm Charts**
 ```yaml
-# k8s/security/pod-security.yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: secure-pod
-spec:
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 1001
-    fsGroup: 1001
-  containers:
-  - name: app
-    image: bankportal-demo-auth-service:latest
-    securityContext:
-      allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
-      capabilities:
-        drop:
-        - ALL
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "250m"
-      limits:
-        memory: "512Mi"
-        cpu: "500m"
-```
+# k8s/helm/bankportal/values.yaml
+replicaCount: 2
 
-#### **Network Policies**
-```yaml
-# k8s/security/network-policy.yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: bankportal-network-policy
-  namespace: bankportal-dev
-spec:
-  podSelector:
-    matchLabels:
-      app: bankportal
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app: bankportal
-    ports:
-    - protocol: TCP
-      port: 8081
-    - protocol: TCP
-      port: 8082
-```
-
----
-
-## 💾 **Backup & Recovery**
-
-### **1. Automatisierte Backups**
-
-#### **Backup Script verwenden**
-```bash
-# Vollständiges Backup erstellen
-./scripts/backup-system.sh backup
-
-# Verfügbare Backups anzeigen
-./scripts/backup-system.sh list
-
-# Backup wiederherstellen
-./scripts/backup-system.sh restore 20250704_191546
-
-# Alte Backups bereinigen
-./scripts/backup-system.sh cleanup
-```
-
-#### **Cron Job für automatische Backups**
-```bash
-# Crontab bearbeiten
-crontab -e
-
-# Tägliches Backup um 2:00 Uhr
-0 2 * * * /path/to/bankportal-demo/scripts/backup-system.sh backup
-
-# Wöchentliche Bereinigung am Sonntag
-0 3 * * 0 /path/to/bankportal-demo/scripts/backup-system.sh cleanup
-```
-
-### **2. Disaster Recovery Plan**
-
-#### **Recovery Procedure**
-```bash
-#!/bin/bash
-# scripts/disaster-recovery.sh
-
-echo "🚨 Disaster Recovery Procedure"
-echo "=============================="
-
-# 1. Neueste Backup finden
-LATEST_BACKUP=$(ls -t backups/ | head -1)
-echo "Neuestes Backup: $LATEST_BACKUP"
-
-# 2. Services stoppen
-echo "Stoppe alle Services..."
-docker-compose down
-kubectl delete namespace bankportal-dev --ignore-not-found
-
-# 3. Volumes bereinigen
-echo "Bereinige Volumes..."
-docker volume prune -f
-
-# 4. Backup wiederherstellen
-echo "Stelle Backup wieder her..."
-./scripts/backup-system.sh restore $LATEST_BACKUP
-
-# 5. Services neu starten
-echo "Starte Services neu..."
-docker-compose up -d
-
-# 6. Verifikation
-echo "Verifiziere Services..."
-sleep 60
-./scripts/test-api.sh
-
-echo "✅ Disaster Recovery abgeschlossen!"
-```
-
-### **3. Backup Verification**
-
-#### **Backup Integrity Check**
-```bash
-#!/bin/bash
-# scripts/verify-backup.sh
-
-BACKUP_DIR=$1
-
-if [ -z "$BACKUP_DIR" ]; then
-    echo "Usage: $0 <backup-directory>"
-    exit 1
-fi
-
-echo "🔍 Backup Verification"
-echo "====================="
-
-# SQL Dumps prüfen
-echo "Prüfe SQL Dumps..."
-if [ -f "$BACKUP_DIR/authdb_backup.sql" ]; then
-    echo "✅ Auth DB Backup gefunden"
-    # SQL Syntax prüfen
-    psql --set ON_ERROR_STOP=1 -f "$BACKUP_DIR/authdb_backup.sql" --dry-run 2>/dev/null && echo "✅ Auth DB Syntax OK"
-else
-    echo "❌ Auth DB Backup fehlt"
-fi
-
-# Volume Backups prüfen
-echo "Prüfe Volume Backups..."
-for backup in "$BACKUP_DIR"/*.tar.gz; do
-    if [ -f "$backup" ]; then
-        echo "✅ $(basename "$backup")"
-        # Tar Integrität prüfen
-        tar -tzf "$backup" >/dev/null 2>&1 && echo "  ✅ Integrität OK" || echo "  ❌ Integrität FEHLER"
-    fi
-done
-
-echo "Backup Verification abgeschlossen"
-```
-
----
-
-## 🌐 **Production Deployment**
-
-### **1. Cloud Deployment (AWS)**
-
-#### **EKS Cluster Setup**
-```bash
-# AWS CLI konfigurieren
-aws configure
-
-# EKS Cluster erstellen
-eksctl create cluster \
-  --name bankportal-prod \
-  --version 1.28 \
-  --region eu-central-1 \
-  --nodegroup-name standard-workers \
-  --node-type t3.medium \
-  --nodes 3 \
-  --nodes-min 1 \
-  --nodes-max 4
-
-# kubectl konfigurieren
-aws eks update-kubeconfig --region eu-central-1 --name bankportal-prod
-```
-
-#### **Helm Chart Deployment**
-```bash
-# Helm installieren
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-# Chart erstellen
-helm create bankportal-chart
-
-# Values für Production
-cat > values-prod.yaml << EOF
-replicaCount: 3
 image:
-  repository: your-registry/bankportal-demo
+  repository: bankportal
   tag: latest
+  pullPolicy: IfNotPresent
+
 service:
-  type: LoadBalancer
+  type: ClusterIP
+  port: 8080
+
 ingress:
   enabled: true
   annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
-    - host: bankportal.yourdomain.com
-      paths:
-        - path: /
-          pathType: Prefix
-EOF
+    - host: bankportal.example.com
+      paths: ["/"]
+  tls:
+    - secretName: bankportal-tls
+      hosts: ["bankportal.example.com"]
 
-# Deployment
-helm install bankportal ./bankportal-chart -f values-prod.yaml
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
 ```
 
-### **2. Environment Management**
+### **🔒 Security Best Practices**
 
-#### **Multi-Environment Setup**
+#### **Secrets Management**
 ```bash
-# Development
-kubectl apply -f k8s/dev/ --namespace=bankportal-dev
+# Kubernetes Secrets
+kubectl create secret generic bankportal-secrets \
+  --from-literal=jwt-secret=your-jwt-secret \
+  --from-literal=db-password=your-db-password
 
-# Staging
-kubectl apply -f k8s/staging/ --namespace=bankportal-staging
-
-# Production
-kubectl apply -f k8s/prod/ --namespace=bankportal-prod
+# Docker Secrets (Swarm Mode)
+echo "your-jwt-secret" | docker secret create jwt_secret -
+echo "your-db-password" | docker secret create db_password -
 ```
 
-#### **Configuration Management**
+#### **Network Security**
 ```yaml
-# k8s/prod/configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: bankportal-config
-  namespace: bankportal-prod
-data:
-  SPRING_PROFILES_ACTIVE: "prod"
-  LOGGING_LEVEL_ROOT: "WARN"
-  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics"
-  CORS_ALLOWED_ORIGINS: "https://bankportal.yourdomain.com"
+# docker-compose-security.yml
+version: '3.8'
+services:
+  auth-service:
+    networks:
+      - backend
+    # Kein direkter Port-Zugriff von außen
+  
+  nginx:
+    ports:
+      - "443:443"
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - ./ssl:/etc/ssl/certs:ro
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true  # Kein Internet-Zugriff
 ```
 
 ---
 
-## 🛠️ **Troubleshooting**
+## 📚 **Weiterführende Ressourcen**
 
-### **1. Häufige Probleme**
+### **📖 Dokumentation**
+- [Spring Boot Reference](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)
+- [Angular Documentation](https://angular.io/docs)
+- [Docker Compose Reference](https://docs.docker.com/compose/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 
-#### **Container startet nicht**
-```bash
-# Logs überprüfen
-docker logs <container-name>
+### **🛠️ Tools & Utilities**
+- [Postman Collection](./docs/postman/bankportal-collection.json)
+- [Insomnia Workspace](./docs/insomnia/bankportal-workspace.json)
+- [JMeter Test Plans](./tests/performance/)
+- [Grafana Dashboards](./monitoring/grafana/dashboards/)
 
-# Container interaktiv starten
-docker run -it --entrypoint /bin/bash bankportal-demo-auth-service:latest
-
-# Health Check manuell testen
-curl -f http://localhost:8081/actuator/health
-```
-
-#### **Kubernetes Pod CrashLoopBackOff**
-```bash
-# Pod Logs anzeigen
-kubectl logs -f <pod-name> -n bankportal-dev
-
-# Pod Events anzeigen
-kubectl describe pod <pod-name> -n bankportal-dev
-
-# Pod Shell öffnen
-kubectl exec -it <pod-name> -n bankportal-dev -- /bin/bash
-```
-
-#### **Datenbankverbindung fehlgeschlagen**
-```bash
-# Datenbankverbindung testen
-kubectl exec -it postgres-auth-<pod-id> -n bankportal-dev -- psql -U admin -d authdb
-
-# Service DNS auflösen
-kubectl exec -it <pod-name> -n bankportal-dev -- nslookup postgres-auth-service
-```
-
-### **2. Debug Tools**
-
-#### **Kubernetes Debug Utilities**
-```bash
-# K9s Terminal UI
-brew install k9s
-k9s -n bankportal-dev
-
-# Stern für Log Streaming
-brew install stern
-stern bankportal -n bankportal-dev
-
-# kubectx für Context Switching
-brew install kubectx
-kubectx minikube
-kubens bankportal-dev
-```
-
-#### **Docker Debug Commands**
-```bash
-# Container Ressourcen anzeigen
-docker stats
-
-# Container Dateisystem untersuchen
-docker exec -it <container> find / -name "*.log" 2>/dev/null
-
-# Netzwerk Debugging
-docker network ls
-docker network inspect <network-name>
-```
+### **🎓 Learning Resources**
+- [Spring Security JWT Tutorial](https://spring.io/guides/tutorials/spring-boot-oauth2/)
+- [Angular Testing Guide](https://angular.io/guide/testing)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [Kubernetes Patterns](https://kubernetes.io/docs/concepts/cluster-administration/manage-deployment/)
 
 ---
 
-## 📚 **Best Practices**
+## 🤝 **Contributing**
 
-### **1. Development Workflow**
+### **🔄 Development Workflow**
+1. **Fork** das Repository
+2. **Feature Branch** erstellen: `git checkout -b feature/amazing-feature`
+3. **Changes committen**: `git commit -m 'Add amazing feature'`
+4. **Branch pushen**: `git push origin feature/amazing-feature`
+5. **Pull Request** erstellen
 
-#### **Git Workflow**
-```bash
-# Feature Branch erstellen
-git checkout -b feature/new-feature
+### **📋 Code Standards**
+- **Java**: Google Java Style Guide
+- **TypeScript**: Angular Style Guide
+- **Git Commits**: Conventional Commits
+- **Documentation**: Markdown mit Emojis
 
-# Änderungen committen
-git add .
-git commit -m "feat: add new feature"
-
-# Tests lokal ausführen
-./scripts/ci-local-quick.sh
-
-# Push und Pull Request
-git push origin feature/new-feature
-```
-
-#### **Code Quality**
-```bash
-# Java Code Style (Checkstyle)
-mvn checkstyle:check
-
-# Frontend Linting
-npm run lint
-
-# Security Scanning
-./scripts/security-scan.sh
-```
-
-### **2. Production Readiness Checklist**
-
-#### **✅ Security**
-- [ ] SSL/TLS Zertifikate konfiguriert
-- [ ] Secrets extern verwaltet
-- [ ] Container Security Scanning
-- [ ] Network Policies implementiert
-- [ ] RBAC konfiguriert
-
-#### **✅ Monitoring**
-- [ ] Prometheus Metriken aktiviert
-- [ ] Grafana Dashboards konfiguriert
-- [ ] Alerting Rules definiert
-- [ ] Log Aggregation eingerichtet
-
-#### **✅ Backup & Recovery**
-- [ ] Automatisierte Backups konfiguriert
-- [ ] Backup Verification implementiert
-- [ ] Disaster Recovery Plan getestet
-- [ ] RTO/RPO Ziele definiert
-
-#### **✅ Performance**
-- [ ] Resource Limits gesetzt
-- [ ] Horizontal Pod Autoscaling konfiguriert
-- [ ] Load Testing durchgeführt
-- [ ] Database Performance optimiert
-
-### **3. Maintenance & Updates**
-
-#### **Regelmäßige Wartung**
-```bash
-# Wöchentliche Wartung
-./scripts/weekly-maintenance.sh
-
-# Security Updates
-./scripts/security-updates.sh
-
-# Performance Monitoring
-./scripts/performance-check.sh
-```
+### **🧪 Testing Requirements**
+- **Unit Tests**: Minimum 80% Coverage
+- **Integration Tests**: Alle API Endpoints
+- **E2E Tests**: Kritische User Journeys
+- **Performance Tests**: Load & Stress Testing
 
 ---
 
-## 🎯 **Zusammenfassung**
+## 📞 **Support & Kontakt**
 
-### **Deployment-Optionen im Überblick**
+### **🐛 Bug Reports**
+- **GitHub Issues**: [Issues erstellen](https://github.com/thanhtuanh/bankportal-demo/issues)
+- **Template verwenden**: Bug Report Template
+- **Logs beifügen**: Relevante Log-Ausgaben
 
-| Umgebung | Technologie | Verwendung | Komplexität |
-|----------|-------------|------------|-------------|
-| **Development** | Docker Compose | Lokale Entwicklung | ⭐ Niedrig |
-| **Staging** | Kubernetes (Minikube) | Testing & Integration | ⭐⭐ Mittel |
-| **Production** | Kubernetes (Cloud) | Live System | ⭐⭐⭐ Hoch |
+### **💡 Feature Requests**
+- **GitHub Discussions**: [Feature Request](https://github.com/thanhtuanh/bankportal-demo/discussions)
+- **Use Case beschreiben**: Warum wird das Feature benötigt?
+- **Implementation vorschlagen**: Wie könnte es umgesetzt werden?
 
-### **Nützliche Commands**
-
-```bash
-# Schneller Start
-docker-compose up -d
-
-# Kubernetes Deployment
-kubectl apply -f k8s/dev/
-
-# Monitoring starten
-docker run -d -p 9090:9090 prom/prometheus
-docker run -d -p 3000:3000 grafana/grafana
-
-# Backup erstellen
-./scripts/backup-system.sh backup
-
-# CI/CD lokal testen
-./scripts/ci-local-quick.sh
-```
-
-### **URLs nach Deployment**
-
-- **Frontend:** http://localhost:4200
-- **Auth API:** http://localhost:8081
-- **Account API:** http://localhost:8082
-- **Prometheus:** http://localhost:9090
-- **Grafana:** http://localhost:3000
+### **📧 Direkter Kontakt**
+- **Email**: dev@bankportal.com
+- **LinkedIn**: [Entwickler Profil](https://linkedin.com/in/developer)
+- **Twitter**: [@bankportal_dev](https://twitter.com/bankportal_dev)
 
 ---
 
-**🎉 Ihr Bank Portal ist jetzt vollständig DevOps-ready!**
+## 📄 **Lizenz**
 
-Dieses Tutorial deckt alle Aspekte von der lokalen Entwicklung bis zum Production Deployment ab. Für spezifische Fragen oder erweiterte Konfigurationen, konsultieren Sie die jeweiligen Abschnitte oder die Dokumentation der verwendeten Tools.
+Dieses Projekt steht unter der **MIT Lizenz** - siehe [LICENSE](LICENSE) Datei für Details.
+
+---
+
+**🎉 Viel Erfolg mit dem Bank Portal! Happy Coding! 🚀**
+
+> *"Moderne Banking-Technologie trifft auf bewährte DevOps-Praktiken"*
+
+---
+
+*Letzte Aktualisierung: Juli 2024 | Version: 2.0.0*
