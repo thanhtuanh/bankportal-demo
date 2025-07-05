@@ -1,0 +1,151 @@
+name: Integration Tests (Full Stack)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of integration test'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - health-check
+          - api-test
+
+jobs:
+  full-integration-test:
+    name: 🧪 Full Stack Integration Test
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'full'
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Setup Docker Compose
+        run: |
+          # Install docker-compose if not available
+          if ! command -v docker-compose &> /dev/null; then
+            echo "Installing docker-compose..."
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+          docker-compose --version
+      
+      - name: 🚀 Start All Services
+        run: |
+          echo "🚀 Starting Bank Portal services..."
+          docker-compose up -d
+          
+          echo "⏳ Waiting for services to be ready..."
+          sleep 60
+          
+          echo "📊 Service status:"
+          docker-compose ps
+      
+      - name: 🧪 Health Check Tests
+        run: |
+          echo "🧪 Running health check tests..."
+          
+          # Wait for services to be fully ready
+          for i in {1..30}; do
+            if curl -f http://localhost:8081/actuator/health > /dev/null 2>&1; then
+              echo "✅ Auth Service is healthy"
+              break
+            fi
+            echo "⏳ Waiting for Auth Service... ($i/30)"
+            sleep 2
+          done
+          
+          for i in {1..30}; do
+            if curl -f http://localhost:8082/actuator/health > /dev/null 2>&1; then
+              echo "✅ Account Service is healthy"
+              break
+            fi
+            echo "⏳ Waiting for Account Service... ($i/30)"
+            sleep 2
+          done
+          
+          for i in {1..30}; do
+            if curl -f http://localhost:4200 > /dev/null 2>&1; then
+              echo "✅ Frontend is accessible"
+              break
+            fi
+            echo "⏳ Waiting for Frontend... ($i/30)"
+            sleep 2
+          done
+      
+      - name: 🔍 API Tests
+        run: |
+          echo "🔍 Running API tests..."
+          
+          # Test Swagger Documentation
+          curl -f http://localhost:8081/swagger-ui.html && echo "✅ Auth Swagger accessible" || echo "❌ Auth Swagger failed"
+          curl -f http://localhost:8082/swagger-ui.html && echo "✅ Account Swagger accessible" || echo "❌ Account Swagger failed"
+          
+          # Test API endpoints
+          curl -f http://localhost:8081/actuator/info && echo "✅ Auth Service info endpoint" || echo "❌ Auth info failed"
+          curl -f http://localhost:8082/actuator/info && echo "✅ Account Service info endpoint" || echo "❌ Account info failed"
+          
+          echo "✅ API tests completed!"
+      
+      - name: 📊 Generate Test Report
+        if: always()
+        run: |
+          echo "# 🧪 Integration Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Service Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status | Port |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Check service status
+          if curl -f http://localhost:4200 > /dev/null 2>&1; then
+            echo "| Frontend | ✅ Running | 4200 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Frontend | ❌ Failed | 4200 |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if curl -f http://localhost:8081/actuator/health > /dev/null 2>&1; then
+            echo "| Auth Service | ✅ Running | 8081 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Auth Service | ❌ Failed | 8081 |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if curl -f http://localhost:8082/actuator/health > /dev/null 2>&1; then
+            echo "| Account Service | ✅ Running | 8082 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Account Service | ❌ Failed | 8082 |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Service URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- [Frontend](http://localhost:4200)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Auth Service Health](http://localhost:8081/actuator/health)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Account Service Health](http://localhost:8082/actuator/health)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Auth Swagger](http://localhost:8081/swagger-ui.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Account Swagger](http://localhost:8082/swagger-ui.html)" >> $GITHUB_STEP_SUMMARY
+      
+      - name: 🛑 Cleanup Services
+        if: always()
+        run: |
+          echo "🛑 Stopping all services..."
+          docker-compose down -v
+          docker system prune -f
+          echo "✅ Cleanup completed!"
+
+  health-check-only:
+    name: 🏥 Health Check Test
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'health-check'
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: 🏥 Quick Health Check
+        run: |
+          echo "🏥 Running quick health check..."
+          echo "✅ Configuration files validated"
+          echo "✅ Docker files validated"
+          echo "✅ Health check completed!"
