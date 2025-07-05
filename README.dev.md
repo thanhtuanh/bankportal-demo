@@ -150,17 +150,38 @@ GitHub Actions: CI/CD Pipeline
 
 ## ⚡ **Schnellstart**
 
-### **🚀 Ein-Klick Development Setup**
+### **🔒 Environment Setup (WICHTIG!)**
+
+**Sicherheitshinweis**: Echte Credentials werden NIEMALS im Git Repository gespeichert!
 
 ```bash
 # 1. Repository klonen
 git clone https://github.com/thanhtuanh/bankportal-demo.git
 cd bankportal-demo
 
-# 2. Development Environment starten
+# 2. Environment Variables einrichten
+cp .env.example .env.development
+
+# 3. .env.development mit echten Werten bearbeiten
+# WICHTIG: Diese Datei wird von Git ignoriert!
+nano .env.development
+
+# 4. Development Environment starten
 docker-compose up -d
 
-# 3. Services testen (nach ~2 Minuten)
+# 5. Services testen (nach ~2 Minuten)
+curl http://localhost:8081/api/health  # Auth Service
+curl http://localhost:8082/api/health  # Account Service
+open http://localhost:4200             # Frontend
+```
+
+### **🚀 Ein-Klick Development Setup**
+
+```bash
+# Für schnelle Tests mit Standard-Werten
+docker-compose up -d
+
+# Services testen (nach ~2 Minuten)
 curl http://localhost:8081/api/health  # Auth Service
 curl http://localhost:8082/api/health  # Account Service
 open http://localhost:4200             # Frontend
@@ -779,25 +800,41 @@ sonar-scanner -Dsonar.projectKey=bankportal \
 
 #### **Development**
 ```bash
-# Environment Variables
-export JWT_SECRET="dev-secret-key"
-export DB_PASSWORD="admin"
+# Environment Variables aus Template erstellen
+cp .env.example .env.development
 
-# .env Files
-echo "JWT_SECRET=dev-secret-key" > .env.development
+# Lokale Werte eintragen (wird von Git ignoriert)
+nano .env.development
+
+# Beispiel für lokale Development-Werte:
+JWT_SECRET="dev-secret-key-$(openssl rand -hex 32)"
+POSTGRES_AUTH_PASSWORD="local-dev-password"
 ```
 
 #### **Production**
 ```bash
 # Kubernetes Secrets
-kubectl create secret generic jwt-secret \
-  --from-literal=secret=production-jwt-secret
+kubectl create secret generic bankportal-secrets \
+  --from-literal=jwt-secret=production-jwt-secret \
+  --from-literal=db-password=secure-db-password
 
 # HashiCorp Vault Integration
 vault kv put secret/bankportal \
   jwt_secret=production-jwt-secret \
   db_password=secure-db-password
+
+# Environment Variables (Cloud Deployment)
+export JWT_SECRET="$(openssl rand -hex 64)"
+export DB_PASSWORD="$(openssl rand -base64 32)"
 ```
+
+#### **🚨 Sicherheits-Checkliste**
+- [ ] ❌ **Niemals echte Credentials in Git committen**
+- [ ] ✅ **Nur .env.example/.env.template ins Repository**
+- [ ] ✅ **.env.development lokal erstellen und bearbeiten**
+- [ ] ✅ **Production Secrets über Secrets Management**
+- [ ] ✅ **Regelmäßige Secret-Rotation**
+- [ ] ✅ **Starke, zufällige Passwörter verwenden**
 
 ---
 
