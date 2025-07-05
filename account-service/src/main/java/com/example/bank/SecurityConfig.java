@@ -36,10 +36,22 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+                        // Health check endpoints (für Docker Health Checks)
+                        .requestMatchers("/api/health").permitAll()
+                        .requestMatchers("/health").permitAll()
+                        
                         // Actuator Endpoints erlauben (für Health Checks)
                         .requestMatchers("/actuator/**").permitAll()
+                        
+                        // Swagger/OpenAPI endpoints
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/api-docs/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        
                         // API Endpoints benötigen Authentifizierung
                         .requestMatchers("/api/accounts/**").authenticated()
+                        
                         // Alle anderen Requests erlauben
                         .anyRequest().permitAll())
                 .addFilterBefore(new JwtAuthFilter(), UsernamePasswordAuthenticationFilter.class);

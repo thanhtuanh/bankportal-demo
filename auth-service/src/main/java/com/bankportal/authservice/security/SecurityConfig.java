@@ -19,6 +19,10 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Health check endpoints (für Docker Health Checks)
+                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/health").permitAll()
+                
                 // Auth endpoints
                 .requestMatchers("/api/auth/**").permitAll()
                 
