@@ -739,6 +739,68 @@ Dieses Projekt demonstriert umfassende Kenntnisse in:
 - Agile Methodologies, Documentation
 - Performance Optimization, Security Auditing
 
+### **🚀 DevOps-Vertiefung & Lernziele**
+
+**Warum dieses Projekt für DevOps-Lernen?**
+
+Dieses Bank Portal Projekt dient als **praktische Lernplattform** für moderne DevOps-Praktiken und -Technologien. Hier möchte ich meine DevOps-Kenntnisse systematisch vertiefen und erweitern:
+
+#### **🎯 Aktuelle DevOps-Schwerpunkte:**
+- **Container-Orchestrierung**: Kubernetes, Docker Swarm, Service Mesh
+- **Infrastructure as Code**: Terraform, Ansible, CloudFormation
+- **CI/CD Pipelines**: Jenkins, GitLab CI, GitHub Actions Optimierung
+- **Monitoring & Observability**: ELK Stack, Jaeger, Distributed Tracing
+- **Cloud-Native Patterns**: 12-Factor Apps, Microservices Best Practices
+
+#### **🔧 Geplante DevOps-Erweiterungen:**
+- **Multi-Environment Setup**: Dev/Staging/Prod mit GitOps
+- **Security Integration**: SAST/DAST, Container Scanning, Policy as Code
+- **Performance Testing**: Load Testing, Chaos Engineering
+- **Backup & Disaster Recovery**: Automatisierte Backup-Strategien
+- **Cost Optimization**: Resource Monitoring, Auto-Scaling Policies
+
+#### **📚 DevOps-Lernpfad:**
+```
+Phase 1: Container & Orchestrierung (✅ Implementiert)
+├── Docker Multi-Stage Builds
+├── Kubernetes Deployments
+├── Service Discovery & Load Balancing
+└── Health Checks & Readiness Probes
+
+Phase 2: CI/CD Automation (🔄 In Arbeit)
+├── Automated Testing Pipelines
+├── Blue-Green Deployments
+├── Canary Releases
+└── Rollback Strategien
+
+Phase 3: Monitoring & Observability (📋 Geplant)
+├── Distributed Tracing
+├── Custom Metrics & Dashboards
+├── Alerting & Incident Response
+└── Log Aggregation & Analysis
+
+Phase 4: Security & Compliance (🎯 Zukünftig)
+├── Security Scanning Integration
+├── Secrets Management
+├── Network Policies
+└── Compliance Automation
+```
+
+#### **💡 Praktische DevOps-Experimente:**
+- **Infrastructure Scaling**: Horizontal Pod Autoscaling testen
+- **Disaster Recovery**: Backup/Restore Szenarien durchspielen
+- **Performance Tuning**: JVM-Optimierung, Database Tuning
+- **Security Hardening**: Network Policies, Pod Security Standards
+- **Cost Management**: Resource Limits, Spot Instances
+
+#### **🎓 DevOps-Lernressourcen:**
+- **Hands-On Labs**: Praktische Übungen mit realen Szenarien
+- **Best Practices**: Industry Standards und Patterns implementieren
+- **Community Learning**: Open Source Contributions, Tech Talks
+- **Zertifizierungen**: CKA, AWS DevOps, Azure DevOps Engineer
+
+**Ziel:** Dieses Projekt als **vollständige DevOps-Referenz** entwickeln, die moderne Praktiken demonstriert und als Lernplattform für andere Entwickler dient.
+
 ---
 
 **📞 Kontakt für Demo-Termine und technische Diskussionen**
