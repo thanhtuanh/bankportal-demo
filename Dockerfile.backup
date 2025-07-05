@@ -1,0 +1,77 @@
+# 💾 Bank Portal - Backup Service Container
+FROM postgres:15-alpine
+
+# Install additional tools
+RUN apk add --no-cache \
+    bash \
+    curl \
+    tar \
+    gzip \
+    coreutils \
+    findutils \
+    dcron \
+    logrotate
+
+# Create backup user and directories
+RUN adduser -D -s /bin/bash backup && \
+    mkdir -p /var/backups/bankportal && \
+    mkdir -p /var/log && \
+    mkdir -p /opt/scripts && \
+    chown -R backup:backup /var/backups/bankportal && \
+    chown -R backup:backup /var/log
+
+# Copy backup scripts
+COPY scripts/db-backup.sh /opt/scripts/
+COPY scripts/db-recovery.sh /opt/scripts/
+COPY scripts/backup-scheduler.sh /opt/scripts/
+
+# Make scripts executable
+RUN chmod +x /opt/scripts/*.sh
+
+# Create cron configuration
+RUN echo "# Bank Portal Backup Cron Jobs" > /etc/crontabs/backup && \
+    echo "0 2 * * * /opt/scripts/db-backup.sh >> /var/log/backup.log 2>&1" >> /etc/crontabs/backup && \
+    echo "0 1 * * 0 /opt/scripts/db-backup.sh --full >> /var/log/backup.log 2>&1" >> /etc/crontabs/backup && \
+    echo "0 3 1 * * /opt/scripts/db-backup.sh --cleanup >> /var/log/backup.log 2>&1" >> /etc/crontabs/backup
+
+# Create logrotate configuration
+RUN echo "/var/log/backup.log {" > /etc/logrotate.d/backup && \
+    echo "    daily" >> /etc/logrotate.d/backup && \
+    echo "    rotate 7" >> /etc/logrotate.d/backup && \
+    echo "    compress" >> /etc/logrotate.d/backup && \
+    echo "    delaycompress" >> /etc/logrotate.d/backup && \
+    echo "    missingok" >> /etc/logrotate.d/backup && \
+    echo "    notifempty" >> /etc/logrotate.d/backup && \
+    echo "    create 644 backup backup" >> /etc/logrotate.d/backup && \
+    echo "}" >> /etc/logrotate.d/backup
+
+# Create startup script
+RUN echo '#!/bin/bash' > /opt/start-backup-service.sh && \
+    echo 'echo "Starting Bank Portal Backup Service..."' >> /opt/start-backup-service.sh && \
+    echo 'echo "Backup service started at $(date)"' >> /var/log/backup.log && \
+    echo '# Start cron daemon' >> /opt/start-backup-service.sh && \
+    echo 'crond -f -d 8 &' >> /opt/start-backup-service.sh && \
+    echo 'CRON_PID=$!' >> /opt/start-backup-service.sh && \
+    echo 'echo "Cron daemon started with PID: $CRON_PID"' >> /opt/start-backup-service.sh && \
+    echo '# Wait for databases to be ready' >> /opt/start-backup-service.sh && \
+    echo 'sleep 60' >> /opt/start-backup-service.sh && \
+    echo '# Run initial health check' >> /opt/start-backup-service.sh && \
+    echo '/opt/scripts/backup-scheduler.sh --health-check' >> /opt/start-backup-service.sh && \
+    echo '# Keep container running' >> /opt/start-backup-service.sh && \
+    echo 'while kill -0 $CRON_PID 2>/dev/null; do' >> /opt/start-backup-service.sh && \
+    echo '    sleep 60' >> /opt/start-backup-service.sh && \
+    echo 'done' >> /opt/start-backup-service.sh && \
+    chmod +x /opt/start-backup-service.sh
+
+# Set working directory
+WORKDIR /opt
+
+# Switch to backup user
+USER backup
+
+# Health check
+HEALTHCHECK --interval=5m --timeout=30s --start-period=1m --retries=3 \
+    CMD /opt/scripts/backup-scheduler.sh --health-check || exit 1
+
+# Start backup service
+CMD ["/opt/start-backup-service.sh"]

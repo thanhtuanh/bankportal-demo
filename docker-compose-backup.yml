@@ -1,0 +1,240 @@
+version: '3.8'
+
+services:
+  # PostgreSQL für Auth-Service mit Backup-Konfiguration
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: postgres-auth
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      # WAL archiving für Point-in-Time Recovery
+      POSTGRES_INITDB_ARGS: "--wal-level=replica --archive-mode=on --archive-command='cp %p /var/lib/postgresql/wal_archive/%f'"
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+      - auth_wal_archive:/var/lib/postgresql/wal_archive
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d
+      - ./backups/auth:/var/backups/auth
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d authdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL für Account-Service mit Backup-Konfiguration
+  postgres-account:
+    image: postgres:15-alpine
+    container_name: postgres-account
+    environment:
+      POSTGRES_DB: accountdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      # WAL archiving für Point-in-Time Recovery
+      POSTGRES_INITDB_ARGS: "--wal-level=replica --archive-mode=on --archive-command='cp %p /var/lib/postgresql/wal_archive/%f'"
+    ports:
+      - "5434:5432"
+    volumes:
+      - account_data:/var/lib/postgresql/data
+      - account_wal_archive:/var/lib/postgresql/wal_archive
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d
+      - ./backups/account:/var/backups/account
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d accountdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Backup Service - Dedicated container for backups
+  backup-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    container_name: backup-service
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *  # Daily at 2 AM
+      - RETENTION_DAYS=30
+      - AUTH_DB_HOST=postgres-auth
+      - AUTH_DB_PORT=5432
+      - ACCOUNT_DB_HOST=postgres-account
+      - ACCOUNT_DB_PORT=5432
+    volumes:
+      - ./backups:/var/backups/bankportal
+      - ./scripts:/opt/scripts
+      - backup_logs:/var/log
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      postgres-account:
+        condition: service_healthy
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  # Auth-Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-auth:5432/authdb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - bank-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Account-Service
+  account-service:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    container_name: account-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-account:5432/accountdb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - JWT_SECRET=mysecretkeymysecretkeymysecretkey123456
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-account:
+        condition: service_healthy
+    networks:
+      - bank-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Angular Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - auth-service
+      - account-service
+    networks:
+      - bank-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /usr/share/nginx/html/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Monitoring Service (optional)
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  # Log Aggregation (optional)
+  log-aggregator:
+    image: grafana/loki:latest
+    container_name: log-aggregator
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+volumes:
+  # Database data volumes
+  auth_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/auth
+  
+  account_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/account
+  
+  # WAL archive volumes for Point-in-Time Recovery
+  auth_wal_archive:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./wal_archive/auth
+  
+  account_wal_archive:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./wal_archive/account
+  
+  # Backup logs
+  backup_logs:
+    driver: local
+  
+  # Monitoring data
+  prometheus_data:
+    driver: local
+  
+  loki_data:
+    driver: local
+
+networks:
+  bank-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
