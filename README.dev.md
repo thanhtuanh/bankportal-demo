@@ -836,6 +836,38 @@ export DB_PASSWORD="$(openssl rand -base64 32)"
 - [ ] ✅ **Regelmäßige Secret-Rotation**
 - [ ] ✅ **Starke, zufällige Passwörter verwenden**
 
+#### **🤖 GitHub Secrets Automatisierung**
+
+**Automatische Übertragung von .env zu GitHub Secrets:**
+
+```bash
+# 1. GitHub CLI Setup
+gh auth login
+
+# 2. Secrets automatisch synchronisieren
+./scripts/sync-github-secrets.sh
+
+# 3. Oder über GitHub Actions UI
+# Repository → Actions → "Sync Environment Secrets" → Run workflow
+```
+
+**GitHub Actions Integration:**
+```yaml
+# Secrets in CI/CD verwenden
+environment:
+  JWT_SECRET: ${{ secrets.PRODUCTION_JWT_SECRET }}
+  DB_PASSWORD: ${{ secrets.PRODUCTION_POSTGRES_AUTH_PASSWORD }}
+```
+
+**Verfügbare Automatisierung:**
+- ✅ **Batch-Upload** aller Environment-Variablen
+- ✅ **GitHub Actions Workflow** für automatische Synchronisation
+- ✅ **Environment-spezifische Prefixes** (PRODUCTION_, STAGING_)
+- ✅ **Sichere Übertragung** ohne lokale Speicherung
+- ✅ **CI/CD Integration** für Deployments
+
+**Siehe:** [GitHub Secrets Setup Guide](docs/GITHUB-SECRETS-SETUP.md)
+
 ---
 
 ## 🚀 **Production Deployment**
