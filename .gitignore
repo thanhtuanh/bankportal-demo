@@ -154,8 +154,8 @@ $RECYCLE.BIN/
 # DOCKER
 # =============================================================================
 
-# Docker
-.dockerignore
+# Docker (but keep .dockerignore files)
+!.dockerignore
 
 # =============================================================================
 # SPRING BOOT
