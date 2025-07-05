@@ -50,12 +50,12 @@ public class ValidationController {
             // Extract token
             String token = authHeader.substring(7);
             
-            // Validate token
-            if (jwtUtil.isTokenExpired(token)) {
+            // Validate token using existing JwtUtil method
+            if (!jwtUtil.isTokenValid(token)) {
                 response.put("valid", false);
-                response.put("error", "Token expired");
+                response.put("error", "Token is invalid or expired");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .header("X-Auth-Status", "expired")
+                    .header("X-Auth-Status", "invalid")
                     .body(response);
             }
             
@@ -125,8 +125,8 @@ public class ValidationController {
             
             String token = authHeader.substring(7);
             
-            if (jwtUtil.isTokenExpired(token)) {
-                response.put("error", "Token expired");
+            if (!jwtUtil.isTokenValid(token)) {
+                response.put("error", "Token is invalid or expired");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
             }
             

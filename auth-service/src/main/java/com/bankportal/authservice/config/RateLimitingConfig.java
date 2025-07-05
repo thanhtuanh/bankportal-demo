@@ -61,8 +61,8 @@ public class RateLimitingConfig implements WebMvcConfigurer {
             int currentCount = requestCount.incrementAndGet();
             
             if (currentCount > maxRequests) {
-                // Rate limit exceeded
-                response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+                // Rate limit exceeded - HTTP 429 Too Many Requests
+                response.setStatus(429);
                 response.setContentType("application/json");
                 response.getWriter().write(String.format(
                     "{\"error\":\"Rate limit exceeded\",\"limit\":%d,\"window\":\"%d minutes\",\"retry_after\":60}",

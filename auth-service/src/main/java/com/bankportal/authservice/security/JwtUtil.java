@@ -29,4 +29,68 @@ public class JwtUtil {
     public Jws<Claims> validateToken(String token) {
         return Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
     }
+
+    // New methods for ValidationController
+    public String extractUsername(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody();
+            return claims.getSubject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public boolean isTokenExpired(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody();
+            return claims.getExpiration().before(new Date());
+        } catch (Exception e) {
+            return true; // Consider invalid tokens as expired
+        }
+    }
+
+    public boolean isTokenValid(String token) {
+        try {
+            Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Claims extractAllClaims(String token) {
+        try {
+            return Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Date extractExpiration(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return claims != null ? claims.getExpiration() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Set<String> extractRoles(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return claims != null ? (Set<String>) claims.get("roles") : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
