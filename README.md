@@ -28,41 +28,158 @@ Das **Bank Portal** ist eine **moderne, cloud-native Banking-Plattform**, die al
 ## 🏗️ **Technische Architektur**
 
 ### **Moderne Mikroservice-Architektur**
+
+```mermaid
+graph TB
+    %% Frontend Layer
+    subgraph "🌐 Frontend Layer"
+        A[Angular SPA<br/>TypeScript<br/>Port 4200] 
+        B[nginx Proxy<br/>Load Balancer<br/>SSL/TLS]
+        C[Static Assets<br/>CDN Ready]
+    end
+    
+    %% API Gateway Layer  
+    subgraph "🔧 API Gateway & Security"
+        D[JWT Authentication<br/>Token Validation]
+        E[Rate Limiting<br/>CORS Policy]
+        F[API Routing<br/>Load Balancing]
+    end
+    
+    %% Business Logic Layer
+    subgraph "⚙️ Microservices Layer"
+        G[🔐 Auth Service<br/>Spring Boot 3.4<br/>Port 8081<br/>JWT Management]
+        H[💼 Account Service<br/>Spring Boot 3.4<br/>Port 8082<br/>Account Management]
+        I[💸 Transaction Service<br/>Spring Boot 3.4<br/>Port 8083<br/>Future Extension]
+    end
+    
+    %% Data Layer
+    subgraph "💾 Data Persistence Layer"
+        J[(PostgreSQL<br/>Auth DB<br/>Port 5433<br/>User Data)]
+        K[(PostgreSQL<br/>Account DB<br/>Port 5434<br/>Financial Data)]
+        L[📊 Monitoring<br/>Prometheus<br/>Grafana]
+    end
+    
+    %% External Services
+    subgraph "🌍 External Integration"
+        M[Payment Gateway<br/>Future Integration]
+        N[Email Service<br/>Notifications]
+        O[Audit Logging<br/>Compliance]
+    end
+    
+    %% Connections
+    A --> B
+    B --> D
+    B --> E
+    B --> F
+    
+    D --> G
+    E --> G
+    F --> G
+    
+    D --> H
+    E --> H
+    F --> H
+    
+    G --> J
+    H --> K
+    
+    G --> L
+    H --> L
+    
+    H --> M
+    G --> N
+    H --> O
+    
+    %% Styling
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef gateway fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef service fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef database fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef external fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class A,B,C frontend
+    class D,E,F gateway
+    class G,H,I service
+    class J,K,L database
+    class M,N,O external
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    🌐 Frontend Layer                            │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Angular SPA   │  │  nginx Proxy    │  │   SSL/TLS       │  │
-│  │   TypeScript    │  │  Load Balancer  │  │   Security      │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│                   🔧 API Gateway Layer                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   JWT Auth      │  │   Rate Limiting │  │   CORS Policy   │  │
-│  │   Validation    │  │   Monitoring    │  │   API Routing   │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│                  ⚙️ Business Logic Layer                        │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │  Auth Service   │  │ Account Service │  │ Transaction     │  │
-│  │  Spring Boot    │  │  Spring Boot    │  │ Processing      │  │
-│  │  Port 8081      │  │  Port 8082      │  │ (Extensible)    │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│                   💾 Data Persistence Layer                     │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │  PostgreSQL     │  │  PostgreSQL     │  │   Backup &      │  │
-│  │  Auth Database  │  │ Account Database│  │   Recovery      │  │
-│  │  Port 5433      │  │  Port 5434      │  │   System        │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+
+**Alternative ASCII-Darstellung für bessere Kompatibilität:**
+
 ```
+                    🌐 FRONTEND LAYER
+    ┌─────────────────────────────────────────────────────────┐
+    │  Angular SPA (4200)  │  nginx Proxy  │  SSL/TLS Security │
+    │  • TypeScript        │  • Load Bal.  │  • HTTPS/WSS      │
+    │  • Responsive UI     │  • Caching    │  • CORS Headers   │
+    └─────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+                    🔧 API GATEWAY & SECURITY
+    ┌─────────────────────────────────────────────────────────┐
+    │  JWT Auth (nginx)   │  Rate Limiting  │  API Routing     │
+    │  • Token Validation │  • DDoS Protect │  • Load Balance  │
+    │  • User Sessions    │  • Monitoring   │  • Health Checks │
+    └─────────────────────────────────────────────────────────┘
+                                   │
+                    ┌──────────────┼──────────────┐
+                    ▼              ▼              ▼
+                ⚙️ MICROSERVICES LAYER
+    ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+    │ 🔐 Auth Service │  │💼 Account Service│  │💸 Future Services│
+    │                 │  │                 │  │                 │
+    │ • User Mgmt     │  │ • Account CRUD  │  │ • Transactions  │
+    │ • JWT Tokens    │  │ • Money Transfer│  │ • Notifications │
+    │ • Registration  │  │ • Balance Check │  │ • Analytics     │
+    │ • Spring Boot   │  │ • Spring Boot   │  │ • Extensible    │
+    │ • Port 8081     │  │ • Port 8082     │  │ • Port 808x     │
+    └─────────────────┘  └─────────────────┘  └─────────────────┘
+                    │              │              │
+                    ▼              ▼              ▼
+                💾 DATA PERSISTENCE LAYER
+    ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+    │   PostgreSQL    │  │   PostgreSQL    │  │   Monitoring    │
+    │   Auth Database │  │ Account Database│  │   & Analytics   │
+    │                 │  │                 │  │                 │
+    │ • Users         │  │ • Accounts      │  │ • Prometheus    │
+    │ • Roles         │  │ • Transactions  │  │ • Grafana       │
+    │ • Sessions      │  │ • Audit Logs    │  │ • Health Metrics│
+    │ • Port 5433     │  │ • Port 5434     │  │ • Port 3000/9090│
+    └─────────────────┘  └─────────────────┘  └─────────────────┘
+
+    🔄 Data Flow: Frontend → nginx → JWT Auth → Services → Databases
+    🛡️ Security: HTTPS, JWT, CORS, Rate Limiting, Input Validation
+    📊 Monitoring: Health Checks, Metrics, Logging, Alerting
+    🚀 Scalability: Horizontal Scaling, Load Balancing, Caching
+```
+
+### **Architektur-Komponenten im Detail**
+
+#### **🌐 Frontend Layer**
+- **Angular SPA (Port 4200)**: Moderne Single-Page-Application mit TypeScript
+- **nginx Proxy**: Reverse Proxy für Load Balancing und SSL-Terminierung
+- **SSL/TLS Security**: End-to-End Verschlüsselung und HTTPS-Enforcement
+
+#### **🔧 API Gateway & Security**
+- **JWT Authentication**: Stateless Token-basierte Authentifizierung
+- **Rate Limiting**: Schutz vor DDoS-Attacken und API-Missbrauch
+- **CORS Policy**: Cross-Origin Resource Sharing Konfiguration
+- **API Routing**: Intelligente Weiterleitung zu Microservices
+
+#### **⚙️ Microservices Layer**
+- **Auth Service (8081)**: Benutzer-Management und JWT-Token-Verwaltung
+- **Account Service (8082)**: Konto-Verwaltung und Geld-Transfers
+- **Future Services**: Erweiterbare Architektur für zusätzliche Services
+
+#### **💾 Data Persistence Layer**
+- **PostgreSQL Auth DB (5433)**: Benutzer-Daten und Authentifizierung
+- **PostgreSQL Account DB (5434)**: Finanz-Daten und Transaktionen
+- **Monitoring Stack**: Prometheus & Grafana für Observability
+
+#### **🌍 External Integration**
+- **Payment Gateway**: Zukünftige Integration für externe Zahlungen
+- **Email Service**: Benachrichtigungen und Kommunikation
+- **Audit Logging**: Compliance und Nachverfolgbarkeit
 
 ### **Technologie-Stack (Enterprise-Grade)**
 
