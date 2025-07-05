@@ -293,7 +293,7 @@ Code Style: Google Java Style
 #### **VS Code Extensions:**
 ```json
 {
-  "recommendations": [
+  "recommendations": [gi
     "vscjava.vscode-java-pack",
     "pivotal.vscode-spring-boot",
     "angular.ng-template",

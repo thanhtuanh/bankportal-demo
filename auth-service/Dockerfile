@@ -1,8 +1,13 @@
 # Multi-Stage Dockerfile für Auth Service
-# Stage 1: Build
-FROM maven:3.9-openjdk-17-slim AS build
+# Stage 1: Build with Maven
+FROM openjdk:17-jdk-slim AS build
 
 WORKDIR /app
+
+# Install Maven
+RUN apt-get update && \
+    apt-get install -y maven && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy pom.xml first for better caching
 COPY pom.xml .
