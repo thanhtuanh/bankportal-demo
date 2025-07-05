@@ -1,6 +1,6 @@
-# 🏦 Bank Portal - Modern Banking Platform
+# 🏦 Bank Portal - Moderne Banking-Plattform
 
-> **Enterprise-Grade Banking Solution**  
+> **Enterprise-Grade Banking-Lösung**  
 > Java 17 • Spring Boot 3.4 • Angular 18 • PostgreSQL 15 • Docker • Kubernetes
 
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.java.net/projects/jdk/17/)
@@ -10,7 +10,7 @@
 
 ---
 
-## 🚀 **Quick Start**
+## 🚀 **Schnellstart**
 
 ```bash
 git clone https://github.com/thanhtuanh/bankportal-demo.git
@@ -18,22 +18,22 @@ cd bankportal-demo
 ./start-demo.sh
 ```
 
-**Ready in 2 minutes!** → http://localhost:4200
+**Bereit in 2 Minuten!** → http://localhost:4200
 
 ---
 
-## 🎯 **Key Features**
+## 🎯 **Hauptfunktionen**
 
-| Component | Technology | Port | Description |
+| Komponente | Technologie | Port | Beschreibung |
 |-----------|------------|------|-------------|
-| **Frontend** | Angular 18 | 4200 | Modern Banking UI |
-| **Auth API** | Spring Boot | 8081 | JWT Authentication |
-| **Account API** | Spring Boot | 8082 | Account Management |
-| **Database** | PostgreSQL 15 | 5433/5434 | ACID Transactions |
+| **Frontend** | Angular 18 | 4200 | Moderne Banking-Oberfläche |
+| **Auth API** | Spring Boot | 8081 | JWT-Authentifizierung |
+| **Account API** | Spring Boot | 8082 | Kontenverwaltung |
+| **Datenbank** | PostgreSQL 15 | 5433/5434 | ACID-Transaktionen |
 
 ---
 
-## 🏗️ **Architecture**
+## 🏗️ **Architektur**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -75,26 +75,26 @@ cd bankportal-demo
 └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
-**Microservices Architecture** • **JWT Security** • **Docker Containerized**
+**Microservices-Architektur** • **JWT-Sicherheit** • **Docker-Containerisiert**
 
 ---
 
-## 💼 **Demo Workflow**
+## 💼 **Demo-Workflow**
 
-### 1. **User Registration & Login**
+### 1. **Benutzerregistrierung & Anmeldung**
 ```bash
 curl -X POST http://localhost:8081/api/auth/register \
   -d '{"username": "demo", "password": "demo123"}'
 ```
 
-### 2. **Account Management**
+### 2. **Kontenverwaltung**
 ```bash
 curl -X POST http://localhost:8082/api/accounts \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"owner": "demo", "balance": 1000.0}'
 ```
 
-### 3. **Money Transfer**
+### 3. **Geldtransfer**
 ```bash
 curl -X POST http://localhost:8082/api/accounts/transfer \
   -H "Authorization: Bearer $TOKEN" \
@@ -103,99 +103,107 @@ curl -X POST http://localhost:8082/api/accounts/transfer \
 
 ---
 
-## 🔧 **Development**
+## 🔧 **Entwicklung**
 
-### **Local Setup**
+### **Lokales Setup**
 ```bash
-# Development
+# Entwicklung
 docker-compose up -d
 
-# Production with Backup
+# Produktion mit Backup
 docker-compose -f docker-compose-backup.yml up -d
+
+# Kubernetes Demo
+./scripts/start-k8s-demo.sh
 ```
 
-### **Tech Stack**
+### **Technologie-Stack**
 - **Backend:** Java 17, Spring Boot 3.4, Spring Security
 - **Frontend:** Angular 18, TypeScript, RxJS
-- **Database:** PostgreSQL 15, JPA/Hibernate
+- **Datenbank:** PostgreSQL 15, JPA/Hibernate
 - **DevOps:** Docker, Kubernetes, GitHub Actions
-- **Security:** JWT, BCrypt, CORS Protection
+- **Sicherheit:** JWT, BCrypt, CORS-Schutz
 
 ---
 
-## 🚀 **Production Ready**
+## 🚀 **Produktionsbereit**
 
-### **Enterprise Features**
-- ✅ **Microservices Architecture**
-- ✅ **JWT Authentication & Authorization**
-- ✅ **ACID Database Transactions**
-- ✅ **Automated Backup & Recovery**
+### **Enterprise-Funktionen**
+- ✅ **Microservices-Architektur**
+- ✅ **JWT-Authentifizierung & Autorisierung**
+- ✅ **ACID-Datenbanktransaktionen**
+- ✅ **Automatisierte Sicherung & Wiederherstellung**
 - ✅ **Health Checks & Monitoring**
-- ✅ **CI/CD Pipeline**
-- ✅ **Kubernetes Deployment**
-- ✅ **Security Best Practices**
+- ✅ **CI/CD-Pipeline**
+- ✅ **Kubernetes-Deployment**
+- ✅ **Sicherheits-Best Practices**
 
-### **Deployment Options**
-- **Docker Compose** - Local development
-- **Kubernetes** - Container orchestration
-- **Cloud Ready** - AWS, Azure, GCP compatible
-
----
-
-## 📚 **Documentation**
-
-| Guide | Description |
-|-------|-------------|
-| [Frontend Guide](docs/FRONTEND-GUIDE.md) | Web app user manual |
-| [API Testing](docs/API-TESTING.md) | REST API examples |
-| [Developer Guide](README.dev.md) | Technical documentation |
-| [GitHub Secrets](docs/GITHUB-SECRETS-SETUP.md) | Automated secrets management |
-| [Quick Reference](docs/QUICK-REFERENCE.md) | Essential commands |
+### **Deployment-Optionen**
+- **Docker Compose** - Lokale Entwicklung
+- **Kubernetes** - Container-Orchestrierung
+- **Cloud Ready** - AWS, Azure, GCP kompatibel
 
 ---
 
-## 🎓 **DevOps Showcase**
+## 📚 **Dokumentation**
 
-This project demonstrates:
-- **Modern Java Development** (Spring Boot 3.4, Java 17)
-- **Frontend Engineering** (Angular 18, TypeScript)
-- **Microservices Design** (Service separation, API Gateway)
-- **Database Management** (PostgreSQL, Transactions, Backup)
-- **Container Technology** (Docker, Kubernetes)
-- **CI/CD Implementation** (GitHub Actions, Automated testing)
-- **Security Implementation** (JWT, Secrets management)
-- **Production Operations** (Monitoring, Health checks, Recovery)
+| Anleitung | Beschreibung |
+|-----------|-------------|
+| [Frontend-Anleitung](docs/FRONTEND-GUIDE.md) | Web-App Benutzerhandbuch |
+| [API-Tests](docs/API-TESTING.md) | REST-API Beispiele |
+| [Entwickler-Anleitung](README.dev.md) | Technische Dokumentation |
+| [GitHub Secrets](docs/GITHUB-SECRETS-SETUP.md) | Automatisierte Secrets-Verwaltung |
+| [Kubernetes-Lernen](docs/KUBERNETES-LEARNING-GUIDE.md) | K8s Lernpfad |
+| [Schnellreferenz](docs/QUICK-REFERENCE.md) | Wichtige Befehle |
 
 ---
 
-## 🛠️ **Quick Commands**
+## 🎓 **DevOps-Showcase**
+
+Dieses Projekt demonstriert:
+- **Moderne Java-Entwicklung** (Spring Boot 3.4, Java 17)
+- **Frontend-Engineering** (Angular 18, TypeScript)
+- **Microservices-Design** (Service-Trennung, API Gateway)
+- **Datenbank-Management** (PostgreSQL, Transaktionen, Backup)
+- **Container-Technologie** (Docker, Kubernetes)
+- **CI/CD-Implementierung** (GitHub Actions, Automatisierte Tests)
+- **Sicherheits-Implementierung** (JWT, Secrets-Management)
+- **Produktions-Betrieb** (Monitoring, Health Checks, Recovery)
+
+---
+
+## 🛠️ **Schnellbefehle**
 
 ```bash
-# Start demo
+# Demo starten
 ./start-demo.sh
 
-# View services
+# Kubernetes Demo
+./scripts/start-k8s-demo.sh
+
+# Services anzeigen
 docker-compose ps
 
-# Check health
+# Health Checks
 curl http://localhost:8081/api/health
 curl http://localhost:8082/api/health
 
-# View logs
+# Logs anzeigen
 docker-compose logs -f
 
-# Stop demo
+# Demo stoppen
 docker-compose down
+./scripts/stop-k8s-demo.sh
 ```
 
 ---
 
-## 📞 **Contact**
+## 📞 **Kontakt**
 
 - **GitHub:** [thanhtuanh/bankportal-demo](https://github.com/thanhtuanh/bankportal-demo)
-- **Issues:** [Report bugs](https://github.com/thanhtuanh/bankportal-demo/issues)
-- **License:** MIT
+- **Issues:** [Bugs melden](https://github.com/thanhtuanh/bankportal-demo/issues)
+- **Lizenz:** MIT
 
 ---
 
-**🎯 Enterprise-grade banking platform showcasing modern development practices and production-ready architecture.**
+**🎯 Enterprise-Grade Banking-Plattform, die moderne Entwicklungspraktiken und produktionsbereite Architektur demonstriert.**
