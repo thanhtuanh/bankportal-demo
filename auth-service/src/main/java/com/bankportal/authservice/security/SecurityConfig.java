@@ -19,13 +19,26 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Auth endpoints
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/actuator/info").permitAll()
+                
+                // Test endpoints
+                .requestMatchers("/api/test/**").permitAll()
+                
+                // Actuator endpoints
+                .requestMatchers("/actuator/**").permitAll()
+                
+                // Swagger/OpenAPI endpoints
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui.html").permitAll()
                 .requestMatchers("/api-docs/**").permitAll()
                 .requestMatchers("/v3/api-docs/**").permitAll()
+                .requestMatchers("/swagger-resources/**").permitAll()
+                .requestMatchers("/webjars/**").permitAll()
+                
+                // Error endpoint
+                .requestMatchers("/error").permitAll()
+                
                 .anyRequest().authenticated());
         // JWT-Filter kann hier später ergänzt werden
         return http.build();
