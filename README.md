@@ -122,7 +122,7 @@ docker-compose -f docker-compose-backup.yml up -d
 | [API Testing](docs/API-TESTING.md) | REST API examples |
 | [Developer Guide](README.dev.md) | Technical documentation |
 | [GitHub Secrets](docs/GITHUB-SECRETS-SETUP.md) | Automated secrets management |
-| [Quick Reference](QUICK-REFERENCE.md) | Essential commands |
+| [Quick Reference](docs/QUICK-REFERENCE.md) | Essential commands |
 
 ---
 
