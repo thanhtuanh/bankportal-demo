@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Relaunch check: show sudo hint if not root
+if [[ "$EUID" -ne 0 ]]; then
+  echo ""
+  echo "⚠️  This script requires root privileges to write to:"
+  echo "   BACKUP_DIR = $BACKUP_DIR"
+  echo "   LOG_FILE   = $LOG_FILE"
+  echo ""
+  echo "➡️  Please run it like this:"
+  echo ""
+  echo "   sudo $0 $@"
+  echo ""
+  exit 1
+fi
+
+
 # 💾 Bank Portal - Database Backup System
 # Comprehensive backup solution for PostgreSQL databases
 
