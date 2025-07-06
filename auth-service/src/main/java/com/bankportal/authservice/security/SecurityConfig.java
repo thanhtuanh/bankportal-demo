@@ -22,6 +22,9 @@ public class SecurityConfig {
                 // Health check endpoints (für Docker Health Checks)
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/health").permitAll()
+
+                // Status endpoint
+                .requestMatchers("/api/status").permitAll()
                 
                 // Auth endpoints
                 .requestMatchers("/api/auth/**").permitAll()
