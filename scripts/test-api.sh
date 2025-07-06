@@ -49,10 +49,13 @@ else
 fi
 
 # Test User Registration
+# ⏰ Generiere einen eindeutigen Usernamen
+UNIQUE_USER="testuser_$(date +%s)"
+
 log_info "Testing User Registration..."
 REGISTER_RESPONSE=$(curl -s -X POST http://localhost:8081/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username": "testuser_'$(date +%s)'", "password": "password123"}')
+  -d "{\"username\": \"$UNIQUE_USER\", \"password\": \"password123\"}")
 
 if echo "$REGISTER_RESPONSE" | grep -q "erfolgreich"; then
     log_success "User Registration OK"
@@ -60,17 +63,16 @@ else
     log_error "User Registration FAILED: $REGISTER_RESPONSE"
 fi
 
-# Test User Login
+# 👇 Login muss denselben Usernamen verwenden!
 log_info "Testing User Login..."
 LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "password123"}')
+  -d "{\"username\": \"$UNIQUE_USER\", \"password\": \"password123\"}")
 
 if echo "$LOGIN_RESPONSE" | grep -q "token"; then
     log_success "User Login OK"
     TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
     
-    # Test Account Service with Token
     log_info "Testing Account Service with JWT Token..."
     ACCOUNTS_RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8082/api/accounts)
     
