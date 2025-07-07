@@ -1,5 +1,8 @@
-package com.example.bank;
+package com.bankportal.accountservice.controller;
 
+import com.bankportal.accountservice.service.AccountService;
+import com.bankportal.accountservice.dto.AccountDto;
+import com.bankportal.accountservice.dto.TransferRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

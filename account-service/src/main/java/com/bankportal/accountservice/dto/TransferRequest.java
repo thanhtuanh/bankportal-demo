@@ -1,4 +1,4 @@
-package com.example.bank;
+package com.bankportal.accountservice.dto;
 
 public class TransferRequest {
     private Long fromAccountId;

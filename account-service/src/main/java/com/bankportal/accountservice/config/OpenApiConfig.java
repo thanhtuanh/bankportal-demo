@@ -1,4 +1,4 @@
-package com.example.accountservice.config;
+package com.bankportal.accountservice.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;

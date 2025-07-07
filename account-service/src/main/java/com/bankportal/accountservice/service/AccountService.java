@@ -1,5 +1,9 @@
-package com.example.bank;
+package com.bankportal.accountservice.service;
 
+import com.bankportal.accountservice.repository.AccountRepository;
+import com.bankportal.accountservice.model.Account;
+import com.bankportal.accountservice.dto.AccountDto;
+import com.bankportal.accountservice.dto.TransferRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;

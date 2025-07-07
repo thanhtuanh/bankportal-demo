@@ -1,5 +1,9 @@
-package com.example.bank;
+package com.bankportal.accountservice.service;
 
+import com.bankportal.accountservice.repository.AccountRepository;
+import com.bankportal.accountservice.model.Account;
+import com.bankportal.accountservice.dto.AccountDto;
+import com.bankportal.accountservice.dto.TransferRequest;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.Arrays;

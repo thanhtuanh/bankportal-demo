@@ -1,17 +1,16 @@
-package com.example.bank;
+package com.bankportal.accountservice.model;
 
-public class AccountDto {
+import jakarta.persistence.*;
+
+@Entity
+public class Account {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String owner;
     private double balance;
-
-    public static AccountDto fromEntity(Account account) {
-        AccountDto dto = new AccountDto();
-        dto.setId(account.getId());
-        dto.setOwner(account.getOwner());
-        dto.setBalance(account.getBalance());
-        return dto;
-    }
 
     // Getter und Setter
     public Long getId() { return id; }
