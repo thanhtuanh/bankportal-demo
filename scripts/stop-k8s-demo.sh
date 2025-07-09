@@ -112,6 +112,19 @@ delete_k8s_dashboard() {
     echo -e "${GREEN}✅ Kubernetes Dashboard gelöscht${NC}"
 }
 
+# Clean up generated files
+cleanup_generated_files() {
+    echo -e "${YELLOW}🧹 Bereinige generierte Dateien...${NC}"
+    
+    if [ -d "$K8S_DIR" ]; then
+        echo -e "${CYAN}   🗑️ Lösche K8s Manifeste...${NC}"
+        rm -rf $K8S_DIR
+        echo -e "${GREEN}✅ Generierte Dateien gelöscht${NC}"
+    else
+        echo -e "${CYAN}ℹ️  Keine generierten Dateien gefunden${NC}"
+    fi
+}
+
 # Show final status
 show_final_status() {
     echo -e "${BLUE}📊 Finale Status-Überprüfung...${NC}"
