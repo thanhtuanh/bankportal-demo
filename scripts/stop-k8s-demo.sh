@@ -117,9 +117,9 @@ cleanup_generated_files() {
     echo -e "${YELLOW}🧹 Bereinige generierte Dateien...${NC}"
     
     if [ -d "$K8S_DIR" ]; then
-        echo -e "${CYAN}   🗑️ Lösche K8s Manifeste...${NC}"
-        rm -rf $K8S_DIR
-        echo -e "${GREEN}✅ Generierte Dateien gelöscht${NC}"
+        # echo -e "${CYAN}   🗑️ Lösche K8s Manifeste...${NC}"
+        # rm -rf $K8S_DIR
+        # echo -e "${GREEN}✅ Generierte Dateien gelöscht${NC}"
     else
         echo -e "${CYAN}ℹ️  Keine generierten Dateien gefunden${NC}"
     fi
