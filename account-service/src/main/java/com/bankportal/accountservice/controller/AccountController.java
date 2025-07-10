@@ -1,18 +1,29 @@
 package com.bankportal.accountservice.controller;
 
-import com.bankportal.accountservice.service.AccountService;
-import com.bankportal.accountservice.dto.AccountDto;
-import com.bankportal.accountservice.dto.TransferRequest;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.bankportal.accountservice.dto.AccountDto;
+import com.bankportal.accountservice.dto.TransferRequest;
+import com.bankportal.accountservice.service.AccountService;
 
 @RestController
 @RequestMapping("/api/accounts")
 @CrossOrigin(origins = "http://localhost:4200")
 public class AccountController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
 
     private final AccountService accountService;
 
@@ -24,12 +35,13 @@ public class AccountController {
     public ResponseEntity<List<AccountDto>> getAll() {
         try {
             String currentUser = getCurrentUser();
-            System.out.println("📋 User '" + currentUser + "' requesting all accounts");
+            logger.info("📋 User '{}' requesting all accounts", currentUser);
 
             List<AccountDto> accounts = accountService.getAllAccounts();
+            logger.debug("✅ Retrieved {} accounts for user '{}'", accounts.size(), currentUser);
             return ResponseEntity.ok(accounts);
         } catch (Exception e) {
-            System.err.println("❌ Error getting accounts: " + e.getMessage());
+            logger.error("❌ Error getting accounts for user '{}': {}", getCurrentUser(), e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -38,31 +50,40 @@ public class AccountController {
     public ResponseEntity<AccountDto> create(@RequestBody AccountDto dto) {
         try {
             String currentUser = getCurrentUser();
-            System.out.println("➕ User '" + currentUser + "' creating account for: " + dto.getOwner());
+            logger.info("➕ User '{}' creating account for: {}", currentUser, dto.getOwner());
 
             AccountDto created = accountService.createAccount(dto);
+            logger.info("✅ Account successfully created with ID {} for owner '{}' by user '{}'",
+                    created.getId(), created.getOwner(), currentUser);
             return ResponseEntity.ok(created);
+        } catch (RuntimeException e) {
+            logger.warn("❌ Account creation failed for user '{}': {}", getCurrentUser(), e.getMessage());
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            System.err.println("❌ Error creating account: " + e.getMessage());
+            logger.error("❌ Unexpected error creating account for user '{}': {}", getCurrentUser(), e.getMessage(), e);
             return ResponseEntity.badRequest().build();
         }
     }
 
     @PostMapping("/transfer")
     public ResponseEntity<String> transfer(@RequestBody TransferRequest request) {
+        String currentUser = getCurrentUser();
+
         try {
-            String currentUser = getCurrentUser();
-            System.out.println("💸 User '" + currentUser + "' initiating transfer: " +
-                    request.getAmount() + "€ from " + request.getFromAccountId() +
-                    " to " + request.getToAccountId());
+            logger.info("💸 User '{}' initiating transfer: {}€ from account {} to account {}",
+                    currentUser, request.getAmount(), request.getFromAccountId(), request.getToAccountId());
 
             accountService.transfer(request);
+
+            logger.info("✅ Transfer successful: {}€ from account {} to account {} by user '{}'",
+                    request.getAmount(), request.getFromAccountId(), request.getToAccountId(), currentUser);
             return ResponseEntity.ok("✅ Transfer successful");
+
         } catch (RuntimeException e) {
-            System.err.println("❌ Transfer failed: " + e.getMessage());
+            logger.warn("❌ Transfer failed for user '{}': {}", currentUser, e.getMessage());
             return ResponseEntity.badRequest().body("❌ " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("❌ Unexpected error during transfer: " + e.getMessage());
+            logger.error("❌ Unexpected error during transfer for user '{}': {}", currentUser, e.getMessage(), e);
             return ResponseEntity.internalServerError().body("❌ Internal server error");
         }
     }
