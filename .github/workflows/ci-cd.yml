@@ -288,18 +288,47 @@ jobs:
       - name: 🔐 Setup kubeconfig
         run: |
           mkdir -p $HOME/.kube
-          if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
-            echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > $HOME/.kube/config
-          elif [[ "${{ github.event.inputs.environment }}" == "staging" ]]; then
-            echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
-          elif [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
-            echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > $HOME/.kube/config
+          
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"  # Default for push events
           fi
+          
+          echo "Deploying to environment: $DEPLOY_ENV"
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > $HOME/.kube/config
+          elif [[ "$DEPLOY_ENV" == "staging" ]]; then
+            echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+          elif [[ "$DEPLOY_ENV" == "prod" ]]; then
+            echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > $HOME/.kube/config
+          else
+            echo "Unknown environment: $DEPLOY_ENV, defaulting to dev"
+            echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > $HOME/.kube/config
+          fi
+          
           chmod 600 $HOME/.kube/config
+          
+          # Verify kubeconfig file exists and has content
+          if [[ ! -s $HOME/.kube/config ]]; then
+            echo "ERROR: kubeconfig file is empty or missing"
+            exit 1
+          fi
           
       - name: 🔍 Test cluster connection
         run: |
-          kubectl cluster-info || echo "⚠️ Cluster connection failed, but continuing with --validate=false"
+          echo "Testing kubectl configuration..."
+          kubectl version --client --output=yaml
+          
+          if kubectl cluster-info --request-timeout=10s; then
+            echo "✅ Cluster connection successful"
+            kubectl config current-context
+          else
+            echo "⚠️ Cluster connection failed, but continuing with --validate=false"
+            echo "This is normal in CI/CD environments without direct cluster access"
+          fi
           
       - name: 🏗️ Ensure namespace exists
         run: |
@@ -307,31 +336,61 @@ jobs:
           
       - name: 🚀 Deploy base manifests
         run: |
-          if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"
+          fi
+          
+          echo "Deploying base manifests to environment: $DEPLOY_ENV"
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
             kubectl apply -f k8s/base/ -n bankportal --validate=false --force
           else
+            echo "Running dry-run for environment: $DEPLOY_ENV"
             kubectl apply -f k8s/base/ -n bankportal --dry-run=client --validate=false
           fi
           
       - name: 📊 Deploy monitoring
         run: |
-          if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"
+          fi
+          
+          echo "Deploying monitoring to environment: $DEPLOY_ENV"
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
             kubectl apply -f k8s/monitoring/ -n bankportal --validate=false --force
           else
+            echo "Running dry-run for monitoring in environment: $DEPLOY_ENV"
             kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client --validate=false
           fi
           
       - name: ✅ Verify deployment (dev only)
-        if: ${{ github.event.inputs.environment == 'dev' }}
         run: |
-          echo "Waiting for deployments to be ready..."
-          kubectl wait --for=condition=available --timeout=300s deployment/auth-service -n bankportal || echo "⚠️ auth-service deployment timeout"
-          kubectl wait --for=condition=available --timeout=300s deployment/account-service -n bankportal || echo "⚠️ account-service deployment timeout"
-          kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bankportal || echo "⚠️ frontend deployment timeout"
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"
+          fi
           
-          echo "Checking pod status..."
-          kubectl get pods -n bankportal
-          kubectl get services -n bankportal
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            echo "Waiting for deployments to be ready..."
+            kubectl wait --for=condition=available --timeout=300s deployment/auth-service -n bankportal || echo "⚠️ auth-service deployment timeout"
+            kubectl wait --for=condition=available --timeout=300s deployment/account-service -n bankportal || echo "⚠️ account-service deployment timeout"
+            kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bankportal || echo "⚠️ frontend deployment timeout"
+            
+            echo "Checking pod status..."
+            kubectl get pods -n bankportal
+            kubectl get services -n bankportal
+          else
+            echo "Skipping deployment verification for environment: $DEPLOY_ENV"
+          fi
           
       - name: 🔍 Debug information (on failure)
         if: failure()
