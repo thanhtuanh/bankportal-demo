@@ -28,27 +28,23 @@ jobs:
     name: 🌐 Frontend Build & Test
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: 📦 Install Dependencies
-        working-directory: ./frontend
-        run: |
+      - run: |
+          cd frontend
           if [ -f package-lock.json ]; then
             npm ci --legacy-peer-deps
           else
             npm install --legacy-peer-deps
           fi
-      - name: 🏗️ Build Frontend
-        working-directory: ./frontend
-        run: npm run build:prod
-      - name: 📤 Upload Frontend Artifacts
-        uses: actions/upload-artifact@v4
+      - run: |
+          cd frontend
+          npm run build:prod
+      - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
@@ -64,35 +60,28 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-      - name: ☕ Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
-      - name: 🧪 Run Tests
-        working-directory: ./auth-service
+      - run: |
+          cd auth-service
+          mvn test || echo "Tests failed, but continuing"
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
           JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
-        run: |
-          mvn test || echo "Tests failed, but continuing"
-      - name: 🏗️ Build Auth Service
-        working-directory: ./auth-service
-        run: mvn clean package -DskipTests
-      - name: 📤 Upload Auth Service Artifacts
-        uses: actions/upload-artifact@v4
+      - run: |
+          cd auth-service
+          mvn clean package -DskipTests
+      - uses: actions/upload-artifact@v4
         with:
           name: auth-service-jar
           path: auth-service/target/*.jar
@@ -108,35 +97,28 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5433:5432']
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-      - name: ☕ Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
-      - name: 🧪 Run Tests
-        working-directory: ./account-service
+      - run: |
+          cd account-service
+          mvn test || echo "Tests failed, but continuing"
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
           JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
-        run: |
-          mvn test || echo "Tests failed, but continuing"
-      - name: 🏗️ Build Account Service
-        working-directory: ./account-service
-        run: mvn clean package -DskipTests
-      - name: 📤 Upload Account Service Artifacts
-        uses: actions/upload-artifact@v4
+      - run: |
+          cd account-service
+          mvn clean package -DskipTests
+      - uses: actions/upload-artifact@v4
         with:
           name: account-service-jar
           path: account-service/target/*.jar
@@ -153,41 +135,29 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: ☕ Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
-      - name: 🗂️ Cache SonarCloud
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
-      - name: 🗂️ Cache Maven
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-      - name: 🔍 Analyze Auth Service
-        working-directory: ./auth-service
+      - run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service -Dsonar.projectName="Bank Portal Auth Service" -Dsonar.organization=thanhtuanh -Dsonar.host.url=https://sonarcloud.io
+        working-directory: auth-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
-          -Dsonar.organization=thanhtuanh \
-          -Dsonar.host.url=https://sonarcloud.io
 
   sonar-account-service:
     name: 🔍 SonarCloud Analysis - Account Service
@@ -201,41 +171,29 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5433:5432']
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: ☕ Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
-      - name: 🗂️ Cache SonarCloud
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
-      - name: 🗂️ Cache Maven
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-      - name: 🔍 Analyze Account Service
-        working-directory: ./account-service
+      - run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service -Dsonar.projectName="Bank Portal Account Service" -Dsonar.organization=thanhtuanh -Dsonar.host.url=https://sonarcloud.io
+        working-directory: account-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
-          -Dsonar.organization=thanhtuanh \
-          -Dsonar.host.url=https://sonarcloud.io
 
   docker-build:
     name: 🐳 Docker Build & Push
@@ -246,36 +204,26 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-      - name: 🔧 Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: 📥 Download Frontend Dist
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
         with:
           name: frontend-dist
           path: ./frontend/dist/
-      - name: 📥 Download Auth JAR
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: auth-service-jar
           path: ./auth-service/target/
-      - name: 📥 Download Account JAR
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: account-service-jar
           path: ./account-service/target/
-      - name: 🐳 Build & Push Auth Image
-        run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest ./auth-service
+      - run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest auth-service
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest
-      - name: 🐳 Build & Push Account Image
-        run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest ./account-service
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest account-service
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest
-      - name: 🐳 Build & Push Frontend Image
-        run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest ./frontend
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest frontend
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
 
   integration-test:
@@ -284,11 +232,8 @@ jobs:
     needs: [docker-build]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-      - name: 🧪 Validate Docker Images
-        run: |
-          echo "Integration tests passed"
+      - uses: actions/checkout@v4
+      - run: echo "✅ Integration tests passed"
 
   deployment-report:
     name: 📊 Deployment Report
@@ -296,8 +241,7 @@ jobs:
     needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service, docker-build, integration-test]
     if: always()
     steps:
-      - name: 📊 Generate Report
-        run: echo "Report generated"
+      - run: echo "🚀 Pipeline completed!"
 
   deploy:
     name: 🚀 Deploy to ${{ github.event.inputs.environment }}
@@ -307,46 +251,37 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: 🔧 Setup kubectl (dev)
         if: ${{ github.event.inputs.environment == 'dev' }}
         uses: azure/setup-kubectl@v3
         with:
           version: '1.27.0'
           kubeconfig: ${{ secrets.KUBE_CONFIG_DEV }}
-
       - name: 🔧 Setup kubectl (staging)
         if: ${{ github.event.inputs.environment == 'staging' }}
         uses: azure/setup-kubectl@v3
         with:
           version: '1.27.0'
           kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
-
       - name: 🔧 Setup kubectl (prod)
         if: ${{ github.event.inputs.environment == 'prod' }}
         uses: azure/setup-kubectl@v3
         with:
           version: '1.27.0'
           kubeconfig: ${{ secrets.KUBE_CONFIG_PROD }}
-
-      - name: 🏗️ Apply Base (or Dry-Run)
-        run: |
+      - run: |
           if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
             kubectl apply -f k8s/base/ -n bankportal
           else
             kubectl apply -f k8s/base/ -n bankportal --dry-run=client
           fi
-
-      - name: 📈 Apply Monitoring (or Dry-Run)
-        run: |
+      - run: |
           if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
             kubectl apply -f k8s/monitoring/ -n bankportal
           else
             kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client
           fi
-
       - name: ✅ Verify Rollout (dev only)
         if: ${{ github.event.inputs.environment == 'dev' }}
         run: |
