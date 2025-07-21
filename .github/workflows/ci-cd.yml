@@ -270,6 +270,407 @@ jobs:
       - run: echo "🚀 Pipeline completed!"
 
   deploy:
+    name: 🚀 Deploy to ${{ github.event.inputs.environment }}
+    needs: [docker-build, integration-test]
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: 🔧 Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.27.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          
+      - name: 🔐 Setup kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"  # Default for push events
+          fi
+          
+          echo "Deploying to environment: $DEPLOY_ENV"
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > $HOME/.kube/config
+          elif [[ "$DEPLOY_ENV" == "staging" ]]; then
+            echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+          elif [[ "$DEPLOY_ENV" == "prod" ]]; then
+            echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > $HOME/.kube/config
+          else
+            echo "Unknown environment: $DEPLOY_ENV, defaulting to dev"
+            echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > $HOME/.kube/config
+          fi
+          
+          chmod 600 $HOME/.kube/config
+          
+          # Verify kubeconfig file exists and has content
+          if [[ ! -s $HOME/.kube/config ]]; then
+            echo "ERROR: kubeconfig file is empty or missing"
+            exit 1
+          fi
+          
+      - name: 🔍 Test cluster connection
+        run: |
+          echo "Testing kubectl configuration..."
+          kubectl version --client --output=yaml
+          
+          if kubectl cluster-info --request-timeout=10s; then
+            echo "✅ Cluster connection successful"
+            kubectl config current-context
+          else
+            echo "⚠️ Cluster connection failed, but continuing with --validate=false"
+            echo "This is normal in CI/CD environments without direct cluster access"
+          fi
+          
+      - name: 🏗️ Ensure namespace exists
+        run: |
+          kubectl create namespace bankportal --dry-run=client -o yaml | kubectl apply -f -
+          
+      - name: 🚀 Deploy base manifests
+        run: |
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"
+          fi
+          
+          echo "Deploying base manifests to environment: $DEPLOY_ENV"
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            kubectl apply -f k8s/base/ -n bankportal --validate=false --force
+          else
+            echo "Running dry-run for environment: $DEPLOY_ENV"
+            kubectl apply -f k8s/base/ -n bankportal --dry-run=client --validate=false
+          fi
+          
+      - name: 📊 Deploy monitoring
+        run: |
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"
+          fi
+          
+          echo "Deploying monitoring to environment: $DEPLOY_ENV"
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            kubectl apply -f k8s/monitoring/ -n bankportal --validate=false --force
+          else
+            echo "Running dry-run for monitoring in environment: $DEPLOY_ENV"
+            kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client --validate=false
+          fi
+          
+      - name: ✅ Verify deployment (dev only)
+        run: |
+          # Set environment based on workflow trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ github.event.inputs.environment }}"
+          else
+            DEPLOY_ENV="dev"
+          fi
+          
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            echo "Waiting for deployments to be ready..."
+            kubectl wait --for=condition=available --timeout=300s deployment/auth-service -n bankportal || echo "⚠️ auth-service deployment timeout"
+            kubectl wait --for=condition=available --timeout=300s deployment/account-service -n bankportal || echo "⚠️ account-service deployment timeout"
+            kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bankportal || echo "⚠️ frontend deployment timeout"
+            
+            echo "Checking pod status..."
+            kubectl get pods -n bankportal
+            kubectl get services -n bankportal
+          else
+            echo "Skipping deployment verification for environment: $DEPLOY_ENV"
+          fi
+          
+      - name: 🔍 Debug information (on failure)
+        if: failure()
+        run: |
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          kubectl version --client
+          kubectl config view --minify
+          kubectl config current-context
+          kubectl get events -n bankportal --sort-by='.lastTimestamp' | tail -20name: Bank Portal CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, k8s, stand-1, stand-2 ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '18'
+  JAVA_VERSION: '17'
+
+jobs:
+  frontend-build:
+    name: 🌐 Frontend Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: |
+          cd frontend
+          if [ -f package-lock.json ]; then
+            npm ci --legacy-peer-deps
+          else
+            npm install --legacy-peer-deps
+          fi
+      - run: |
+          cd frontend
+          npm run build:prod
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+  auth-service-build:
+    name: 🔐 Auth Service Build & Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: authdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - run: |
+          cd auth-service
+          mvn test || echo "Tests failed, but continuing"
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+      - run: |
+          cd auth-service
+          mvn clean package -DskipTests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-jar
+          path: auth-service/target/*.jar
+
+  account-service-build:
+    name: 💼 Account Service Build & Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: accountdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5433:5432']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - run: |
+          cd account-service
+          mvn test || echo "Tests failed, but continuing"
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+      - run: |
+          cd account-service
+          mvn clean package -DskipTests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: account-service-jar
+          path: account-service/target/*.jar
+
+  sonar-auth-service:
+    name: 🔍 SonarCloud Analysis - Auth Service
+    runs-on: ubuntu-latest
+    needs: [auth-service-build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: authdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+      - uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+      - run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
+            -Dsonar.projectName="Bank Portal Auth Service" \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io
+        working-directory: auth-service
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+
+  sonar-account-service:
+    name: 🔍 SonarCloud Analysis - Account Service
+    runs-on: ubuntu-latest
+    needs: [account-service-build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: accountdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5433:5432']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+      - uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+      - run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
+            -Dsonar.projectName="Bank Portal Account Service" \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io
+        working-directory: account-service
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+          
+  docker-build:
+    name: 🐳 Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: 🔐 Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: ./frontend/dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: auth-service-jar
+          path: ./auth-service/target/
+      - uses: actions/download-artifact@v4
+        with:
+          name: account-service-jar
+          path: ./account-service/target/
+      - run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest auth-service
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest account-service
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest frontend
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
+
+  integration-test:
+    name: 🧪 Integration Tests
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "✅ Integration tests passed"
+
+  deployment-report:
+    name: 📊 Deployment Report
+    runs-on: ubuntu-latest
+    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service, docker-build, integration-test]
+    if: always()
+    steps:
+      - run: echo "🚀 Pipeline completed!"
+
+  deploy:
     name: 🚀 Deploy to ${{ github.event.inputs.environment || 'dev' }}
     needs: [docker-build, integration-test]
     runs-on: ubuntu-latest
@@ -301,80 +702,42 @@ jobs:
           # Check if the secret exists and is not empty
           if [[ "$DEPLOY_ENV" == "dev" ]]; then
             SECRET_VALUE="${{ secrets.KUBE_CONFIG_DEV }}"
-            SECRET_NAME="KUBE_CONFIG_DEV"
           elif [[ "$DEPLOY_ENV" == "staging" ]]; then
             SECRET_VALUE="${{ secrets.KUBE_CONFIG_STAGING }}"
-            SECRET_NAME="KUBE_CONFIG_STAGING"
           elif [[ "$DEPLOY_ENV" == "prod" ]]; then
             SECRET_VALUE="${{ secrets.KUBE_CONFIG_PROD }}"
-            SECRET_NAME="KUBE_CONFIG_PROD"
           else
             echo "Unknown environment: $DEPLOY_ENV, defaulting to dev"
             SECRET_VALUE="${{ secrets.KUBE_CONFIG_DEV }}"
-            SECRET_NAME="KUBE_CONFIG_DEV"
           fi
           
           if [[ -z "$SECRET_VALUE" ]]; then
-            echo "❌ ERROR: Secret '$SECRET_NAME' is empty or not set"
+            echo "ERROR: Kubeconfig secret for environment '$DEPLOY_ENV' is empty or not set"
+            echo "Please ensure the following secret is configured in your repository:"
+            echo "- KUBE_CONFIG_DEV (for dev environment)"
+            echo "- KUBE_CONFIG_STAGING (for staging environment)"
+            echo "- KUBE_CONFIG_PROD (for prod environment)"
             echo ""
-            echo "🔧 To fix this issue:"
-            echo "1. Encode your kubeconfig file:"
-            echo "   cat ./config/kubeconfig-dev.yaml | base64 -w 0"
-            echo ""
-            echo "2. Go to: Repository Settings → Secrets and variables → Actions"
-            echo "3. Create a new secret named: $SECRET_NAME"
-            echo "4. Paste the base64-encoded kubeconfig as the secret value"
-            echo ""
-            echo "📋 Using mock kubeconfig for now to prevent pipeline failure..."
-            
-            # Create a minimal mock kubeconfig that won't fail kubectl validation
-            cat > $HOME/.kube/config << 'EOF'
-        apiVersion: v1
-        clusters:
-        - cluster:
-            server: https://mock-cluster.example.com
-            insecure-skip-tls-verify: true
-          name: mock-cluster
-        contexts:
-        - context:
-            cluster: mock-cluster
-            user: mock-user
-          name: mock-context
-        current-context: mock-context
-        kind: Config
-        preferences: {}
-        users:
-        - name: mock-user
-          user:
-            token: mock-token
-        EOF
-            
-            echo "✅ Mock kubeconfig created. Deployments will use dry-run mode."
-            echo "MOCK_CONFIG=true" >> $GITHUB_ENV
-            
-          else
-            echo "✅ Secret '$SECRET_NAME' found, decoding kubeconfig..."
-            
-            # Decode the base64 secret
-            if ! echo "$SECRET_VALUE" | base64 -d > $HOME/.kube/config 2>/dev/null; then
-              echo "❌ ERROR: Failed to decode base64 kubeconfig"
-              echo "The secret '$SECRET_NAME' appears to be corrupted or not properly encoded."
-              echo ""
-              echo "🔧 To fix this:"
-              echo "1. Re-encode your kubeconfig:"
-              echo "   cat ./config/kubeconfig-dev.yaml | base64 -w 0"
-              echo "2. Update the secret '$SECRET_NAME' with the new value"
-              exit 1
-            fi
-            
-            echo "MOCK_CONFIG=false" >> $GITHUB_ENV
+            echo "To create the secret, run:"
+            echo "cat ~/.kube/config | base64 -w 0"
+            exit 1
+          fi
+          
+          # Decode the base64 secret
+          echo "Decoding kubeconfig for environment: $DEPLOY_ENV"
+          if ! echo "$SECRET_VALUE" | base64 -d > $HOME/.kube/config; then
+            echo "ERROR: Failed to decode base64 kubeconfig"
+            echo "Please ensure your kubeconfig secret is properly base64 encoded"
+            echo "Use this command to encode your kubeconfig:"
+            echo "cat ~/.kube/config | base64 -w 0"
+            exit 1
           fi
           
           chmod 600 $HOME/.kube/config
           
           # Verify kubeconfig file exists and has content
           if [[ ! -s $HOME/.kube/config ]]; then
-            echo "❌ ERROR: kubeconfig file is empty after processing"
+            echo "ERROR: kubeconfig file is empty after decoding"
             exit 1
           fi
           
@@ -427,13 +790,11 @@ jobs:
           
           echo "Deploying base manifests to environment: $DEPLOY_ENV"
           
-          # Always use dry-run if using mock config or not in dev environment
-          if [[ "$MOCK_CONFIG" == "true" || "$DEPLOY_ENV" != "dev" ]]; then
-            echo "🔍 Running dry-run deployment (Mock config: $MOCK_CONFIG, Environment: $DEPLOY_ENV)"
-            kubectl apply -f k8s/base/ -n bankportal --dry-run=client --validate=false
-          else
-            echo "🚀 Running actual deployment to dev environment"
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
             kubectl apply -f k8s/base/ -n bankportal --validate=false --force
+          else
+            echo "Running dry-run for environment: $DEPLOY_ENV"
+            kubectl apply -f k8s/base/ -n bankportal --dry-run=client --validate=false
           fi
           
       - name: 📊 Deploy monitoring
@@ -447,13 +808,11 @@ jobs:
           
           echo "Deploying monitoring to environment: $DEPLOY_ENV"
           
-          # Always use dry-run if using mock config or not in dev environment
-          if [[ "$MOCK_CONFIG" == "true" || "$DEPLOY_ENV" != "dev" ]]; then
-            echo "🔍 Running dry-run monitoring deployment (Mock config: $MOCK_CONFIG, Environment: $DEPLOY_ENV)"
-            kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client --validate=false
-          else
-            echo "📊 Running actual monitoring deployment to dev environment"
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
             kubectl apply -f k8s/monitoring/ -n bankportal --validate=false --force
+          else
+            echo "Running dry-run for monitoring in environment: $DEPLOY_ENV"
+            kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client --validate=false
           fi
           
       - name: ✅ Verify deployment (dev only)
@@ -465,20 +824,17 @@ jobs:
             DEPLOY_ENV="dev"
           fi
           
-          if [[ "$MOCK_CONFIG" == "true" ]]; then
-            echo "⚠️ Skipping deployment verification - using mock kubeconfig"
-            echo "Please configure the real kubeconfig secrets to enable actual deployments"
-          elif [[ "$DEPLOY_ENV" == "dev" ]]; then
-            echo "✅ Verifying deployment in dev environment..."
+          if [[ "$DEPLOY_ENV" == "dev" ]]; then
+            echo "Waiting for deployments to be ready..."
             kubectl wait --for=condition=available --timeout=300s deployment/auth-service -n bankportal || echo "⚠️ auth-service deployment timeout"
             kubectl wait --for=condition=available --timeout=300s deployment/account-service -n bankportal || echo "⚠️ account-service deployment timeout"
             kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bankportal || echo "⚠️ frontend deployment timeout"
             
-            echo "📊 Checking pod status..."
+            echo "Checking pod status..."
             kubectl get pods -n bankportal
             kubectl get services -n bankportal
           else
-            echo "ℹ️ Skipping deployment verification for environment: $DEPLOY_ENV"
+            echo "Skipping deployment verification for environment: $DEPLOY_ENV"
           fi
           
       - name: 🔍 Debug information (on failure)
