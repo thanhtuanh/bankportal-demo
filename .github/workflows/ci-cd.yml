@@ -154,15 +154,20 @@ jobs:
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-      - run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
-          -Dsonar.projectName="Bank Portal Auth Service" \
-          -Dsonar.organization=thanhtuanh \
-          -Dsonar.host.url=https://sonarcloud.io
+      - run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
+            -Dsonar.projectName="Bank Portal Auth Service" \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io
         working-directory: auth-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
 
   sonar-account-service:
     name: 🔍 SonarCloud Analysis - Account Service
@@ -195,16 +200,21 @@ jobs:
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-      - run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
-          -Dsonar.projectName="Bank Portal Account Service" \
-          -Dsonar.organization=thanhtuanh \
-          -Dsonar.host.url=https://sonarcloud.io
+      - run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
+            -Dsonar.projectName="Bank Portal Account Service" \
+            -Dsonar.organization=thanhtuanh \
+            -Dsonar.host.url=https://sonarcloud.io
         working-directory: account-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+          
   docker-build:
     name: 🐳 Docker Build & Push
     runs-on: ubuntu-latest
