@@ -301,6 +301,10 @@ jobs:
         run: |
           kubectl cluster-info || echo "⚠️ Cluster connection failed, but continuing with --validate=false"
           
+      - name: 🏗️ Ensure namespace exists
+        run: |
+          kubectl create namespace bankportal --dry-run=client -o yaml | kubectl apply -f -
+          
       - name: 🚀 Deploy base manifests
         run: |
           if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
@@ -328,49 +332,12 @@ jobs:
           echo "Checking pod status..."
           kubectl get pods -n bankportal
           kubectl get services -n bankportal
-    name: 🚀 Deploy to ${{ github.event.inputs.environment }}
-    needs: [docker-build, integration-test]
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    steps:
-      - uses: actions/checkout@v4
-      - name: 🔧 Setup kubectl (dev)
-        if: ${{ github.event.inputs.environment == 'dev' }}
-        uses: azure/setup-kubectl@v3
-        with:
-          version: '1.27.0'
-          kubeconfig: ${{ secrets.KUBE_CONFIG_DEV }}
-      - name: 🔧 Setup kubectl (staging)
-        if: ${{ github.event.inputs.environment == 'staging' }}
-        uses: azure/setup-kubectl@v3
-        with:
-          version: '1.27.0'
-          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
-      - name: 🔧 Setup kubectl (prod)
-        if: ${{ github.event.inputs.environment == 'prod' }}
-        uses: azure/setup-kubectl@v3
-        with:
-          version: '1.27.0'
-          kubeconfig: ${{ secrets.KUBE_CONFIG_PROD }}
-      - run: |
-          if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
-            kubectl apply -f k8s/base/ -n bankportal
-          else
-            kubectl apply -f k8s/base/ -n bankportal --dry-run=client
-          fi
-      - run: |
-          if [[ "${{ github.event.inputs.environment }}" == "dev" ]]; then
-            kubectl apply -f k8s/monitoring/ -n bankportal
-          else
-            kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client
-          fi
-      - name: ✅ Verify Rollout (dev only)
-        if: ${{ github.event.inputs.environment == 'dev' }}
+          
+      - name: 🔍 Debug information (on failure)
+        if: failure()
         run: |
-          kubectl rollout status deployment/auth-service -n bankportal
-          kubectl rollout status deployment/account-service -n bankportal
-          kubectl rollout status deployment/frontend -n bankportal
-          kubectl rollout status deployment/prometheus -n bankportal
-          kubectl rollout status deployment/grafana -n bankportal
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          kubectl version --client
+          kubectl config view --minify
+          kubectl config current-context
+          kubectl get events -n bankportal --sort-by='.lastTimestamp' | tail -20
