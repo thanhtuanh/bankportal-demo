@@ -412,9 +412,10 @@ jobs:
             echo "This might be normal in CI/CD environments without direct cluster access"
           fi
           
-      - name: 🏗️ Ensure namespace exists
+      - name: 🏗️ Ensure namespace exists (client dry-run)
         run: |
-          kubectl create namespace bankportal --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace bankportal --dry-run=client -o yaml \
+            | kubectl apply --dry-run=client -f - --validate=false
           
       - name: 🚀 Deploy base manifests
         run: |
