@@ -41,10 +41,12 @@ replay_pid*
 .env.staging
 .env.test
 .env.*.local
+.env.prod
 
 # Keep only templates and examples (without real credentials)
 !.env.template
 !.env.example
+!.env.prod.example
 
 # =============================================================================
 # NODE.JS / ANGULAR BUILD ARTIFACTS
@@ -55,6 +57,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
 
 # Angular build output
 dist/
@@ -151,11 +154,20 @@ $RECYCLE.BIN/
 .nfs*
 
 # =============================================================================
-# DOCKER
+# DOCKER & CONTAINERS
 # =============================================================================
 
 # Docker (but keep .dockerignore files)
 !.dockerignore
+
+# Docker Compose override files
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Docker volumes and data
+data/
+prod-data/
+docker-data/
 
 # =============================================================================
 # SPRING BOOT
@@ -174,6 +186,11 @@ application-*.log
 *.sqlite
 *.sqlite3
 
+# Database dumps and backups
+backups/
+*.sql
+*.dump
+
 # =============================================================================
 # BACKUP FILES
 # =============================================================================
@@ -184,7 +201,7 @@ application-*.log
 *.tmp
 
 # =============================================================================
-# LOGS
+# LOGS & MONITORING
 # =============================================================================
 
 # Logs
@@ -197,6 +214,9 @@ pids/
 *.seed
 *.pid.lock
 
+# Monitoring data
+monitoring/data/
+
 # =============================================================================
 # TESTING
 # =============================================================================
@@ -207,14 +227,25 @@ junit.xml
 coverage.xml
 
 # =============================================================================
-# SECURITY
+# SECURITY & CERTIFICATES
 # =============================================================================
 
-# Private keys
+# Private keys and certificates
 *.pem
 *.key
 *.p12
 *.jks
+*.crt
+*.csr
+*.der
+
+# SSL certificates
+ssl/
+certs/
+
+# JWT secrets and tokens
+secrets/
+*.secret
 
 # =============================================================================
 # TEMPORARY FILES
@@ -232,9 +263,101 @@ tmp/
 \#*#
 
 # =============================================================================
-# PROJECT SPECIFIC
+# KUBERNETES & DEPLOYMENT
+# =============================================================================
+
+# Kubernetes secrets
+k8s/secrets/
+k8s/generated/
+
+# Helm charts
+charts/*/templates/secrets.yaml
+
+# =============================================================================
+# CLOUD & CI/CD
+# =============================================================================
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# AWS
+.aws/
+
+# Google Cloud
+.gcloud/
+
+# CI/CD artifacts
+.github/workflows/*.env
+
+# =============================================================================
+# PROJECT SPECIFIC - BANK PORTAL
 # =============================================================================
 
 # Bank Portal specific ignores
 web-app/
 build/
+
+# Generated files from our scripts
+*-generated.yml
+*-generated.yaml
+
+# Local development overrides
+docker-compose.local.yml
+docker-compose.dev.yml
+
+# Backup scripts output
+backups/
+*.backup.sql
+
+# Local configuration
+config/local/
+local-config/
+
+# Test data
+test-data/
+sample-data/
+
+# Performance logs
+performance/
+benchmarks/
+
+# =============================================================================
+# FINANCE/BANKING SPECIFIC SECURITY
+# =============================================================================
+
+# NEVER commit these in a banking application
+financial-data/
+customer-data/
+transaction-logs/
+audit-logs/
+compliance-reports/
+
+# API keys and tokens (banking APIs)
+*.api-key
+api-keys/
+tokens/
+
+# Encryption keys
+encryption/
+keys/
+
+# =============================================================================
+# GENERATED DOCUMENTATION
+# =============================================================================
+
+# Generated API docs
+api-docs/generated/
+swagger-output/
+
+# =============================================================================
+# CACHE FILES
+# =============================================================================
+
+# Various cache directories
+.cache/
+cache/
+.npm/
+.yarn/
