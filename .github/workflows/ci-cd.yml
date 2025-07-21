@@ -447,12 +447,12 @@ jobs:
       - name: 🏗️ Deploy Base Manifests
         run: |
           echo "🟢 Applying base manifests…"
-          kubectl apply -f base/ --namespace=bankportal
+          kubectl apply -f k8s/base/ --namespace=bankportal
 
       - name: 📈 Deploy Monitoring Stack
         run: |
           echo "🔵 Applying monitoring manifests…"
-          kubectl apply -f monitoring/ --namespace=bankportal
+          kubectl apply -f k8s/monitoring/ --namespace=bankportal
 
       - name: ✅ Verify Rollout
         run: |
