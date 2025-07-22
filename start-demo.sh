@@ -71,7 +71,7 @@ if [[ "$USE_DOCKER_BUILD" == "false" ]]; then
     # Build Auth Service
     echo -e "${CYAN}   📦 Baue Auth Service...${NC}"
     cd auth-service
-    if mvn clean package -DskipTests > /dev/null 2>&1; then
+    if mvn clean package -DskipTests;  then
         echo -e "${GREEN}   ✅ Auth Service erfolgreich gebaut${NC}"
     else
         echo -e "${RED}   ❌ Auth Service Build fehlgeschlagen${NC}"
@@ -84,7 +84,7 @@ if [[ "$USE_DOCKER_BUILD" == "false" ]]; then
     if [[ "$USE_DOCKER_BUILD" == "false" ]]; then
         echo -e "${CYAN}   📦 Baue Account Service...${NC}"
         cd account-service
-        if mvn clean package -DskipTests > /dev/null 2>&1; then
+        if mvn clean package -DskipTests; then
             echo -e "${GREEN}   ✅ Account Service erfolgreich gebaut${NC}"
         else
             echo -e "${RED}   ❌ Account Service Build fehlgeschlagen${NC}"

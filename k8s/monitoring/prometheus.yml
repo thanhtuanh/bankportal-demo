@@ -1,0 +1,41 @@
+# k8s/monitoring/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Auth Service metrics
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auth-service:8081']
+    scrape_interval: 10s
+
+  # Account Service metrics  
+  - job_name: 'account-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['account-service:8082']
+    scrape_interval: 10s
+
+  # Health checks for services
+  - job_name: 'auth-service-health'
+    metrics_path: '/actuator/health'
+    static_configs:
+      - targets: ['auth-service:8081']
+    scrape_interval: 30s
+
+  - job_name: 'account-service-health'
+    metrics_path: '/actuator/health'
+    static_configs:
+      - targets: ['account-service:8082']
+    scrape_interval: 30s
