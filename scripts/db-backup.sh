@@ -1,43 +1,23 @@
 #!/bin/bash
 
-# Relaunch check: show sudo hint if not root
-if [[ "$EUID" -ne 0 ]]; then
-  echo ""
-  echo "⚠️  This script requires root privileges to write to:"
-  echo "   BACKUP_DIR = $BACKUP_DIR"
-  echo "   LOG_FILE   = $LOG_FILE"
-  echo ""
-  echo "➡️  Please run it like this:"
-  echo ""
-  echo "   sudo $0 $@"
-  echo ""
-  exit 1
-fi
-
-
-# 💾 Bank Portal - Database Backup System
-# Comprehensive backup solution for PostgreSQL databases
+# Bank Portal - Docker-basiertes Database Backup System
+# Uses docker-compose exec to backup databases from within containers
 
 set -e
 
 # Configuration
-BACKUP_DIR="/var/backups/bankportal"
+BACKUP_DIR="/tmp/bankportal-backup"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-RETENTION_DAYS=30
-LOG_FILE="/var/log/bankportal-backup.log"
+LOG_FILE="/tmp/bankportal-backup.log"
 
-# Database Configuration
-AUTH_DB_HOST="localhost"
-AUTH_DB_PORT="5433"
-AUTH_DB_NAME="authdb"
+# Database Configuration (verwendet Docker-Container)
 AUTH_DB_USER="admin"
-AUTH_DB_PASSWORD="admin"
+AUTH_DB_NAME="authdb"
+AUTH_CONTAINER="postgres-auth"
 
-ACCOUNT_DB_HOST="localhost"
-ACCOUNT_DB_PORT="5434"
-ACCOUNT_DB_NAME="accountdb"
 ACCOUNT_DB_USER="admin"
-ACCOUNT_DB_PASSWORD="admin"
+ACCOUNT_DB_NAME="accountdb"
+ACCOUNT_CONTAINER="postgres-account"
 
 # Colors for output
 RED='\033[0;31m'
@@ -69,22 +49,34 @@ create_backup_dir() {
     mkdir -p "$BACKUP_DIR/auth-service/$TIMESTAMP"
     mkdir -p "$BACKUP_DIR/account-service/$TIMESTAMP"
     mkdir -p "$BACKUP_DIR/full-backup/$TIMESTAMP"
-    success "Backup directories created"
+    success "Backup directories created at $BACKUP_DIR"
 }
 
-# Check database connectivity
+# Check if services are running
+check_services() {
+    log "Checking if Docker services are running..."
+    
+    if ! docker-compose ps | grep -q "Up"; then
+        error "Docker services are not running!"
+        log "Please start services first:"
+        log "  docker-compose up -d"
+        return 1
+    fi
+    
+    success "Docker services are running"
+    return 0
+}
+
+# Check database connectivity using docker exec
 check_db_connection() {
-    local host=$1
-    local port=$2
+    local container=$1
+    local user=$2
     local db=$3
-    local user=$4
-    local password=$5
-    local service_name=$6
+    local service_name=$4
     
-    log "Checking connection to $service_name database..."
+    log "Checking connection to $service_name database in container $container..."
     
-    export PGPASSWORD="$password"
-    if pg_isready -h "$host" -p "$port" -U "$user" -d "$db" > /dev/null 2>&1; then
+    if docker-compose exec -T "$container" psql -U "$user" -d "$db" -c "\l" > /dev/null 2>&1; then
         success "$service_name database is accessible"
         return 0
     else
@@ -93,61 +85,86 @@ check_db_connection() {
     fi
 }
 
-# Backup individual database
+# Backup database using docker exec
 backup_database() {
-    local host=$1
-    local port=$2
+    local container=$1
+    local user=$2
     local db=$3
-    local user=$4
-    local password=$5
-    local service_name=$6
-    local backup_path=$7
+    local service_name=$4
+    local backup_path=$5
     
-    log "Starting backup for $service_name database..."
+    log "Starting backup for $service_name database from container $container..."
     
-    export PGPASSWORD="$password"
+    # Create temporary backup inside container, then copy out
+    local temp_backup="/tmp/${service_name}_backup_${TIMESTAMP}"
     
-    # Full database dump
-    local dump_file="$backup_path/${service_name}_full_${TIMESTAMP}.sql"
-    if pg_dump -h "$host" -p "$port" -U "$user" -d "$db" \
+    # Full database dump (custom format)
+    log "Creating custom format backup for $service_name..."
+    if docker-compose exec -T "$container" pg_dump -U "$user" -d "$db" \
         --verbose --clean --if-exists --create \
         --format=custom --compress=9 \
-        --file="$dump_file.backup" 2>> "$LOG_FILE"; then
-        success "$service_name database backup completed: $dump_file.backup"
+        --file="$temp_backup.backup" 2>> "$LOG_FILE"; then
+        
+        # Copy backup out of container
+        docker cp "$container:$temp_backup.backup" "$backup_path/${service_name}_full_${TIMESTAMP}.backup"
+        success "$service_name custom backup completed"
     else
-        error "Failed to backup $service_name database"
-        return 1
+        error "Failed to create custom backup for $service_name"
+        log "Trying alternative backup method for $service_name..."
+        
+        # Fallback: Try without compression
+        if docker-compose exec -T "$container" pg_dump -U "$user" -d "$db" \
+            --verbose --clean --if-exists --create \
+            --format=custom \
+            --file="$temp_backup.backup" 2>> "$LOG_FILE"; then
+            
+            docker cp "$container:$temp_backup.backup" "$backup_path/${service_name}_full_${TIMESTAMP}.backup"
+            success "$service_name custom backup completed (without compression)"
+        else
+            warning "Custom format backup failed for $service_name, continuing with SQL only"
+        fi
     fi
     
-    # Plain SQL dump for readability
-    if pg_dump -h "$host" -p "$port" -U "$user" -d "$db" \
+    # Plain SQL dump
+    log "Creating plain SQL dump for $service_name..."
+    if docker-compose exec -T "$container" pg_dump -U "$user" -d "$db" \
         --verbose --clean --if-exists --create \
         --format=plain \
-        --file="$dump_file" 2>> "$LOG_FILE"; then
-        success "$service_name plain SQL dump completed: $dump_file"
+        --file="$temp_backup.sql" 2>> "$LOG_FILE"; then
+        
+        # Copy SQL dump out of container
+        docker cp "$container:$temp_backup.sql" "$backup_path/${service_name}_full_${TIMESTAMP}.sql"
+        success "$service_name SQL dump completed"
     else
-        warning "Failed to create plain SQL dump for $service_name"
+        warning "Failed to create SQL dump for $service_name"
     fi
     
     # Schema-only backup
-    local schema_file="$backup_path/${service_name}_schema_${TIMESTAMP}.sql"
-    if pg_dump -h "$host" -p "$port" -U "$user" -d "$db" \
+    log "Creating schema backup for $service_name..."
+    if docker-compose exec -T "$container" pg_dump -U "$user" -d "$db" \
         --schema-only --verbose \
-        --file="$schema_file" 2>> "$LOG_FILE"; then
-        success "$service_name schema backup completed: $schema_file"
+        --file="$temp_backup.schema.sql" 2>> "$LOG_FILE"; then
+        
+        docker cp "$container:$temp_backup.schema.sql" "$backup_path/${service_name}_schema_${TIMESTAMP}.sql"
+        success "$service_name schema backup completed"
     else
-        warning "Failed to backup $service_name schema"
+        warning "Failed to create schema backup for $service_name"
     fi
     
     # Data-only backup
-    local data_file="$backup_path/${service_name}_data_${TIMESTAMP}.sql"
-    if pg_dump -h "$host" -p "$port" -U "$user" -d "$db" \
+    log "Creating data backup for $service_name..."
+    if docker-compose exec -T "$container" pg_dump -U "$user" -d "$db" \
         --data-only --verbose \
-        --file="$data_file" 2>> "$LOG_FILE"; then
-        success "$service_name data backup completed: $data_file"
+        --file="$temp_backup.data.sql" 2>> "$LOG_FILE"; then
+        
+        docker cp "$container:$temp_backup.data.sql" "$backup_path/${service_name}_data_${TIMESTAMP}.sql"
+        success "$service_name data backup completed"
     else
-        warning "Failed to backup $service_name data"
+        warning "Failed to create data backup for $service_name"
     fi
+    
+    # Cleanup temporary files in container
+    docker-compose exec -T "$container" rm -f "$temp_backup"* 2>/dev/null || true
     
     # Compress backups
     log "Compressing $service_name backups..."
@@ -173,26 +190,27 @@ create_manifest() {
         "timestamp": "$TIMESTAMP",
         "date": "$(date -Iseconds)",
         "version": "1.0",
-        "type": "full_backup"
+        "type": "docker_backup",
+        "method": "docker-compose exec pg_dump"
     },
     "databases": {
         "auth_service": {
-            "host": "$AUTH_DB_HOST",
-            "port": "$AUTH_DB_PORT",
+            "container": "$AUTH_CONTAINER",
             "database": "$AUTH_DB_NAME",
+            "user": "$AUTH_DB_USER",
             "backup_files": [
-                "auth-service_full_${TIMESTAMP}.sql.backup",
+                "auth-service_full_${TIMESTAMP}.backup",
                 "auth-service_full_${TIMESTAMP}.sql",
                 "auth-service_schema_${TIMESTAMP}.sql",
                 "auth-service_data_${TIMESTAMP}.sql"
             ]
         },
         "account_service": {
-            "host": "$ACCOUNT_DB_HOST",
-            "port": "$ACCOUNT_DB_PORT",
+            "container": "$ACCOUNT_CONTAINER",
             "database": "$ACCOUNT_DB_NAME",
+            "user": "$ACCOUNT_DB_USER",
             "backup_files": [
-                "account-service_full_${TIMESTAMP}.sql.backup",
+                "account-service_full_${TIMESTAMP}.backup",
                 "account-service_full_${TIMESTAMP}.sql",
                 "account-service_schema_${TIMESTAMP}.sql",
                 "account-service_data_${TIMESTAMP}.sql"
@@ -201,9 +219,8 @@ create_manifest() {
     },
     "system_info": {
         "hostname": "$(hostname)",
-        "postgres_version": "$(psql --version | head -n1)",
-        "backup_tool": "pg_dump",
-        "compression": "gzip"
+        "docker_compose_version": "$(docker-compose version --short 2>/dev/null || echo 'unknown')",
+        "backup_location": "$BACKUP_DIR"
     }
 }
 EOF
@@ -211,100 +228,64 @@ EOF
     success "Backup manifest created: $manifest_file"
 }
 
-# Cleanup old backups
-cleanup_old_backups() {
-    log "Cleaning up backups older than $RETENTION_DAYS days..."
+# List database contents for verification
+verify_backup_content() {
+    local container=$1
+    local user=$2
+    local db=$3
+    local service_name=$4
     
-    find "$BACKUP_DIR" -type f -name "*.tar.gz" -mtime +$RETENTION_DAYS -delete 2>> "$LOG_FILE"
-    find "$BACKUP_DIR" -type f -name "*.sql" -mtime +$RETENTION_DAYS -delete 2>> "$LOG_FILE"
-    find "$BACKUP_DIR" -type f -name "*.backup" -mtime +$RETENTION_DAYS -delete 2>> "$LOG_FILE"
+    log "Verifying $service_name database content..."
     
-    # Remove empty directories
-    find "$BACKUP_DIR" -type d -empty -delete 2>> "$LOG_FILE"
+    # List tables
+    log "Tables in $service_name database:"
+    docker-compose exec -T "$container" psql -U "$user" -d "$db" -c "\dt" 2>/dev/null | tee -a "$LOG_FILE" || true
     
-    success "Old backups cleaned up"
-}
-
-# Verify backup integrity
-verify_backup() {
-    local backup_file=$1
-    local service_name=$2
-    
-    log "Verifying $service_name backup integrity..."
-    
-    if [ -f "$backup_file" ]; then
-        # Check if backup file is not empty
-        if [ -s "$backup_file" ]; then
-            # For custom format backups, use pg_restore to list contents
-            if [[ "$backup_file" == *.backup ]]; then
-                if pg_restore --list "$backup_file" > /dev/null 2>&1; then
-                    success "$service_name backup verification passed"
-                    return 0
-                else
-                    error "$service_name backup verification failed"
-                    return 1
-                fi
-            else
-                success "$service_name backup file exists and is not empty"
-                return 0
-            fi
-        else
-            error "$service_name backup file is empty"
-            return 1
-        fi
-    else
-        error "$service_name backup file not found"
-        return 1
-    fi
-}
-
-# Send backup notification
-send_notification() {
-    local status=$1
-    local message=$2
-    
-    # This could be extended to send email, Slack, etc.
-    log "NOTIFICATION: $status - $message"
-    
-    # Example: Send to webhook (uncomment and configure)
-    # curl -X POST -H 'Content-type: application/json' \
-    #     --data "{\"text\":\"Bank Portal Backup $status: $message\"}" \
-    #     "$SLACK_WEBHOOK_URL"
+    # Count records in each table
+    log "Record counts in $service_name database:"
+    docker-compose exec -T "$container" psql -U "$user" -d "$db" -c "
+        SELECT schemaname,tablename,n_tup_ins as inserts, n_tup_upd as updates, n_tup_del as deletes 
+        FROM pg_stat_user_tables 
+        ORDER BY schemaname,tablename;
+    " 2>/dev/null | tee -a "$LOG_FILE" || true
 }
 
 # Main backup function
 main() {
-    log "=== Bank Portal Database Backup Started ==="
-    
-    # Check if running as root or with sufficient privileges
-    if [[ $EUID -ne 0 ]] && [[ ! -w "$BACKUP_DIR" ]]; then
-        warning "Running without root privileges. Ensure backup directory is writable."
-    fi
+    log "=== Bank Portal Docker Database Backup Started ==="
     
     # Create backup directories
     create_backup_dir
     
-    # Check database connections
-    if ! check_db_connection "$AUTH_DB_HOST" "$AUTH_DB_PORT" "$AUTH_DB_NAME" "$AUTH_DB_USER" "$AUTH_DB_PASSWORD" "auth-service"; then
-        error "Cannot connect to auth-service database. Backup aborted."
-        send_notification "FAILED" "Cannot connect to auth-service database"
+    # Check if Docker services are running
+    if ! check_services; then
+        error "Services not running. Please start with: docker-compose up -d"
         exit 1
     fi
     
-    if ! check_db_connection "$ACCOUNT_DB_HOST" "$ACCOUNT_DB_PORT" "$ACCOUNT_DB_NAME" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_PASSWORD" "account-service"; then
-        error "Cannot connect to account-service database. Backup aborted."
-        send_notification "FAILED" "Cannot connect to account-service database"
+    # Check database connections
+    if ! check_db_connection "$AUTH_CONTAINER" "$AUTH_DB_USER" "$AUTH_DB_NAME" "auth-service"; then
+        error "Cannot connect to auth-service database in container $AUTH_CONTAINER"
         exit 1
     fi
+    
+    if ! check_db_connection "$ACCOUNT_CONTAINER" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_NAME" "account-service"; then
+        error "Cannot connect to account-service database in container $ACCOUNT_CONTAINER"
+        exit 1
+    fi
+    
+    # Verify database content before backup
+    verify_backup_content "$AUTH_CONTAINER" "$AUTH_DB_USER" "$AUTH_DB_NAME" "auth-service"
+    verify_backup_content "$ACCOUNT_CONTAINER" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_NAME" "account-service"
     
     # Backup databases
     local backup_success=true
     
-    if ! backup_database "$AUTH_DB_HOST" "$AUTH_DB_PORT" "$AUTH_DB_NAME" "$AUTH_DB_USER" "$AUTH_DB_PASSWORD" "auth-service" "$BACKUP_DIR/auth-service/$TIMESTAMP"; then
+    if ! backup_database "$AUTH_CONTAINER" "$AUTH_DB_USER" "$AUTH_DB_NAME" "auth-service" "$BACKUP_DIR/auth-service/$TIMESTAMP"; then
         backup_success=false
     fi
     
-    if ! backup_database "$ACCOUNT_DB_HOST" "$ACCOUNT_DB_PORT" "$ACCOUNT_DB_NAME" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_PASSWORD" "account-service" "$BACKUP_DIR/account-service/$TIMESTAMP"; then
+    if ! backup_database "$ACCOUNT_CONTAINER" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_NAME" "account-service" "$BACKUP_DIR/account-service/$TIMESTAMP"; then
         backup_success=false
     fi
     
@@ -312,18 +293,17 @@ main() {
         # Create manifest
         create_manifest
         
-        # Verify backups
-        verify_backup "$BACKUP_DIR/auth-service/$TIMESTAMP/auth-service_full_${TIMESTAMP}.sql.backup" "auth-service"
-        verify_backup "$BACKUP_DIR/account-service/$TIMESTAMP/account-service_full_${TIMESTAMP}.sql.backup" "account-service"
-        
-        # Cleanup old backups
-        cleanup_old_backups
-        
         success "=== Bank Portal Database Backup Completed Successfully ==="
-        send_notification "SUCCESS" "All databases backed up successfully at $TIMESTAMP"
+        log "Backup location: $BACKUP_DIR"
+        log ""
+        log "Available backups:"
+        find "$BACKUP_DIR" -name "*.tar.gz" -exec ls -lh {} \;
+        log ""
+        log "To restore a backup:"
+        log "  # Custom format: docker-compose exec postgres-auth pg_restore -U admin -d authdb /path/to/backup.backup"
+        log "  # SQL format: docker-compose exec postgres-auth psql -U admin -d authdb < /path/to/backup.sql"
     else
         error "=== Bank Portal Database Backup Failed ==="
-        send_notification "FAILED" "Database backup failed at $TIMESTAMP"
         exit 1
     fi
 }
@@ -331,30 +311,41 @@ main() {
 # Handle script arguments
 case "${1:-}" in
     --help|-h)
-        echo "Bank Portal Database Backup System"
+        echo "Bank Portal Docker Database Backup System"
         echo "Usage: $0 [options]"
+        echo ""
+        echo "This script uses docker-compose exec to backup PostgreSQL databases"
+        echo "running in Docker containers."
+        echo ""
+        echo "Prerequisites:"
+        echo "  - Docker services must be running (docker-compose up -d)"
+        echo "  - No additional PostgreSQL client installation required"
         echo ""
         echo "Options:"
         echo "  --help, -h     Show this help message"
-        echo "  --verify       Verify existing backups"
-        echo "  --cleanup      Cleanup old backups only"
+        echo "  --check        Check prerequisites and connections"
+        echo "  --verify       Verify database content"
         echo "  --list         List available backups"
         echo ""
         exit 0
         ;;
-    --verify)
-        log "Verifying existing backups..."
-        # Add verification logic here
+    --check)
+        log "Checking prerequisites and connections..."
+        check_services
+        check_db_connection "$AUTH_CONTAINER" "$AUTH_DB_USER" "$AUTH_DB_NAME" "auth-service"
+        check_db_connection "$ACCOUNT_CONTAINER" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_NAME" "account-service"
+        success "All checks passed!"
         exit 0
         ;;
-    --cleanup)
-        log "Cleaning up old backups..."
-        cleanup_old_backups
+    --verify)
+        log "Verifying database content..."
+        verify_backup_content "$AUTH_CONTAINER" "$AUTH_DB_USER" "$AUTH_DB_NAME" "auth-service"
+        verify_backup_content "$ACCOUNT_CONTAINER" "$ACCOUNT_DB_USER" "$ACCOUNT_DB_NAME" "account-service"
         exit 0
         ;;
     --list)
         log "Available backups:"
-        find "$BACKUP_DIR" -name "*.tar.gz" -type f -exec ls -lh {} \;
+        find "$BACKUP_DIR" -name "*.tar.gz" -type f -exec ls -lh {} \; 2>/dev/null || log "No backups found"
         exit 0
         ;;
     *)

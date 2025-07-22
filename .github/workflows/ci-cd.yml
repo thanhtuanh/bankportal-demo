@@ -6,16 +6,6 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment Environment'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-          - dev
-          - staging
-          - prod
 
 env:
   REGISTRY: ghcr.io
@@ -114,7 +104,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+          JWT_SECRET: testsecretkeytestsecretkey123456
       - run: |
           cd account-service
           mvn clean package -DskipTests
@@ -213,7 +203,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
+          JWT_SECRET: testsecretkeytestsecretkey123456
           
   docker-build:
     name: 🐳 Docker Build & Push
@@ -261,253 +251,69 @@ jobs:
       - uses: actions/checkout@v4
       - run: echo "✅ Integration tests passed"
 
-  deployment-report:
-    name: 📊 Deployment Report
+  local-deployment-info:
+    name: 🏠 Local Deployment Instructions
     runs-on: ubuntu-latest
-    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service, docker-build, integration-test]
+    needs: [docker-build, integration-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: 🎉 Deployment Ready
+        run: |
+          echo "🎉 Docker Images erfolgreich erstellt und gepusht!"
+          echo ""
+          echo "🏠 LOKALES DEPLOYMENT:"
+          echo "┌─────────────────────────────────────────────────────────┐"
+          echo "│  git pull origin main                                   │"
+          echo "│  ./scripts/deploy-local.sh                             │"
+          echo "└─────────────────────────────────────────────────────────┘"
+          echo ""
+          echo "🐳 Verfügbare Docker Images:"
+          echo "  - ghcr.io/${{ github.repository }}/auth-service:latest"
+          echo "  - ghcr.io/${{ github.repository }}/account-service:latest" 
+          echo "  - ghcr.io/${{ github.repository }}/frontend:latest"
+          echo ""
+          echo "🌐 Services nach Deployment verfügbar unter:"
+          echo "  - Frontend:     http://localhost:4200"
+          echo "  - Auth API:     http://localhost:8081" 
+          echo "  - Account API:  http://localhost:8082"
+          echo ""
+          echo "📚 Weitere Commands:"
+          echo "  ./scripts/test-api.sh           # API Tests ausführen"
+          echo "  ./scripts/docker-backup.sh      # Datenbank-Backup"
+          echo "  docker-compose logs -f          # Live-Logs anzeigen"
+          echo "  docker-compose ps               # Service-Status prüfen"
+          echo "  docker-compose down             # Services stoppen"
+
+  deployment-report:
+    name: 📊 Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service, docker-build, integration-test, local-deployment-info]
     if: always()
     steps:
-      - run: echo "🚀 Pipeline completed!"
-
-  deploy:
-    name: 🚀 Deploy to ${{ github.event.inputs.environment || 'dev' }}
-    needs: [docker-build, integration-test]
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: 🔧 Install kubectl
+      - name: 📊 Build Summary
         run: |
-          curl -LO "https://dl.k8s.io/release/v1.27.0/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
-          
-      - name: 🔐 Setup kubeconfig
-        run: |
-          mkdir -p $HOME/.kube
-          
-          # Set environment based on workflow trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            DEPLOY_ENV="${{ github.event.inputs.environment }}"
-          else
-            DEPLOY_ENV="dev"  # Default for push events
-          fi
-          
-          echo "Deploying to environment: $DEPLOY_ENV"
-          
-          # Check if the secret exists and is not empty
-          if [[ "$DEPLOY_ENV" == "dev" ]]; then
-            SECRET_VALUE="${{ secrets.KUBE_CONFIG_DEV }}"
-            SECRET_NAME="KUBE_CONFIG_DEV"
-          elif [[ "$DEPLOY_ENV" == "staging" ]]; then
-            SECRET_VALUE="${{ secrets.KUBE_CONFIG_STAGING }}"
-            SECRET_NAME="KUBE_CONFIG_STAGING"
-          elif [[ "$DEPLOY_ENV" == "prod" ]]; then
-            SECRET_VALUE="${{ secrets.KUBE_CONFIG_PROD }}"
-            SECRET_NAME="KUBE_CONFIG_PROD"
-          else
-            echo "Unknown environment: $DEPLOY_ENV, defaulting to dev"
-            SECRET_VALUE="${{ secrets.KUBE_CONFIG_DEV }}"
-            SECRET_NAME="KUBE_CONFIG_DEV"
-          fi
-          
-          if [[ -z "$SECRET_VALUE" ]]; then
-            echo "❌ ERROR: Secret '$SECRET_NAME' is empty or not set"
+          echo "🏗️ BANK PORTAL CI/CD PIPELINE SUMMARY"
+          echo "====================================="
+          echo ""
+          echo "📦 Frontend Build:        ${{ needs.frontend-build.result }}"
+          echo "🔐 Auth Service Build:    ${{ needs.auth-service-build.result }}"
+          echo "💼 Account Service Build: ${{ needs.account-service-build.result }}"
+          echo "🔍 SonarCloud Auth:       ${{ needs.sonar-auth-service.result }}"
+          echo "🔍 SonarCloud Account:    ${{ needs.sonar-account-service.result }}"
+          echo "🐳 Docker Build & Push:   ${{ needs.docker-build.result }}"
+          echo "🧪 Integration Tests:     ${{ needs.integration-test.result }}"
+          echo "🏠 Deployment Guide:      ${{ needs.local-deployment-info.result }}"
+          echo ""
+          if [[ "${{ needs.docker-build.result }}" == "success" ]]; then
+            echo "✅ Pipeline erfolgreich - Bereit für lokales Deployment!"
             echo ""
-            echo "🔧 To fix this issue:"
-            echo "1. Encode your kubeconfig file:"
-            echo "   cat ./config/kubeconfig-dev.yaml | base64 -w 0"
-            echo ""
-            echo "2. Go to: Repository Settings → Secrets and variables → Actions"
-            echo "3. Create a new secret named: $SECRET_NAME"
-            echo "4. Paste the base64-encoded kubeconfig as the secret value"
-            echo ""
-            echo "📋 Using mock kubeconfig for now to prevent pipeline failure..."
-            
-            # Create a minimal mock kubeconfig that won't fail kubectl validation
-            cat > $HOME/.kube/config << 'EOF'
-          apiVersion: v1
-          clusters:
-          - cluster:
-              server: https://mock-cluster.example.com
-              insecure-skip-tls-verify: true
-            name: mock-cluster
-          contexts:
-          - context:
-              cluster: mock-cluster
-              user: mock-user
-            name: mock-context
-          current-context: mock-context
-          kind: Config
-          preferences: {}
-          users:
-          - name: mock-user
-            user:
-              token: mock-token
-          EOF
-            
-            echo "✅ Mock kubeconfig created. Deployments will use dry-run mode."
-            echo "MOCK_CONFIG=true" >> $GITHUB_ENV
-            
+            echo "🚀 Nächste Schritte:"
+            echo "  1. Repository pullen: git pull origin main"
+            echo "  2. Lokales Deployment: ./scripts/deploy-local.sh"
+            echo "  3. Services testen: http://localhost:4200"
           else
-            echo "✅ Secret '$SECRET_NAME' found, decoding kubeconfig..."
-            
-            # Decode the base64 secret
-            if ! echo "$SECRET_VALUE" | base64 -d > $HOME/.kube/config 2>/dev/null; then
-              echo "❌ ERROR: Failed to decode base64 kubeconfig"
-              echo "The secret '$SECRET_NAME' appears to be corrupted or not properly encoded."
-              echo ""
-              echo "🔧 To fix this:"
-              echo "1. Re-encode your kubeconfig:"
-              echo "   cat ./config/kubeconfig-dev.yaml | base64 -w 0"
-              echo "2. Update the secret '$SECRET_NAME' with the new value"
-              exit 1
-            fi
-            
-            echo "MOCK_CONFIG=false" >> $GITHUB_ENV
+            echo "❌ Pipeline fehlgeschlagen. Überprüfen Sie die Logs."
           fi
-          
-          chmod 600 $HOME/.kube/config
-          
-          # Verify kubeconfig file exists and has content
-          if [[ ! -s $HOME/.kube/config ]]; then
-            echo "❌ ERROR: kubeconfig file is empty after processing"
-            exit 1
-          fi
-          
-          echo "✅ Kubeconfig successfully configured for environment: $DEPLOY_ENV"
-          
-      - name: 🔍 Test cluster connection
-        run: |
-          echo "Testing kubectl configuration..."
-          
-          # First, check if kubeconfig is valid YAML
-          if ! kubectl config view --minify &>/dev/null; then
-            echo "ERROR: Invalid kubeconfig YAML format"
-            echo "First few lines of kubeconfig:"
-            head -5 $HOME/.kube/config || echo "Could not read kubeconfig file"
-            exit 1
-          fi
-          
-          kubectl version --client --output=yaml
-          
-          echo "Current context check..."
-          if kubectl config current-context; then
-            echo "✅ Kubeconfig context is valid"
-          else
-            echo "❌ No valid context found in kubeconfig"
-            echo "Available contexts:"
-            kubectl config get-contexts || echo "No contexts available"
-            exit 1
-          fi
-          
-          echo "Testing cluster connection..."
-          if kubectl cluster-info --request-timeout=10s; then
-            echo "✅ Cluster connection successful"
-          else
-            echo "⚠️ Cluster connection failed, but continuing with --validate=false"
-            echo "This might be normal in CI/CD environments without direct cluster access"
-          fi
-          
-      - name: 🏗️ Ensure namespace exists (client dry-run)
-        run: |
-          kubectl create namespace bankportal --dry-run=client -o yaml \
-            | kubectl apply --dry-run=client -f - --validate=false
-          
-      - name: 🚀 Deploy base manifests
-        run: |
-          # Set environment based on workflow trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            DEPLOY_ENV="${{ github.event.inputs.environment }}"
-          else
-            DEPLOY_ENV="dev"
-          fi
-          
-          echo "Deploying base manifests to environment: $DEPLOY_ENV"
-          
-          # Always use dry-run if using mock config or not in dev environment
-          if [[ "$MOCK_CONFIG" == "true" || "$DEPLOY_ENV" != "dev" ]]; then
-            echo "🔍 Running dry-run deployment (Mock config: $MOCK_CONFIG, Environment: $DEPLOY_ENV)"
-            kubectl apply -f k8s/base/ -n bankportal --dry-run=client --validate=false
-          else
-            echo "🚀 Running actual deployment to dev environment"
-            kubectl apply -f k8s/base/ -n bankportal --validate=false --force
-          fi
-          
-      - name: 📊 Deploy monitoring
-        run: |
-          # Set environment based on workflow trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            DEPLOY_ENV="${{ github.event.inputs.environment }}"
-          else
-            DEPLOY_ENV="dev"
-          fi
-          
-          echo "Deploying monitoring to environment: $DEPLOY_ENV"
-          
-          # Always use dry-run if using mock config or not in dev environment
-          if [[ "$MOCK_CONFIG" == "true" || "$DEPLOY_ENV" != "dev" ]]; then
-            echo "🔍 Running dry-run monitoring deployment (Mock config: $MOCK_CONFIG, Environment: $DEPLOY_ENV)"
-            kubectl apply -f k8s/monitoring/ -n bankportal --dry-run=client --validate=false
-          else
-            echo "📊 Running actual monitoring deployment to dev environment"
-            kubectl apply -f k8s/monitoring/ -n bankportal --validate=false --force
-          fi
-          
-      - name: ✅ Verify deployment (dev only)
-        run: |
-          # Set environment based on workflow trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            DEPLOY_ENV="${{ github.event.inputs.environment }}"
-          else
-            DEPLOY_ENV="dev"
-          fi
-          
-          if [[ "$MOCK_CONFIG" == "true" ]]; then
-            echo "⚠️ Skipping deployment verification - using mock kubeconfig"
-            echo "Please configure the real kubeconfig secrets to enable actual deployments"
-          elif [[ "$DEPLOY_ENV" == "dev" ]]; then
-            echo "✅ Verifying deployment in dev environment..."
-            kubectl wait --for=condition=available --timeout=300s deployment/auth-service -n bankportal || echo "⚠️ auth-service deployment timeout"
-            kubectl wait --for=condition=available --timeout=300s deployment/account-service -n bankportal || echo "⚠️ account-service deployment timeout"
-            kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bankportal || echo "⚠️ frontend deployment timeout"
-            
-            echo "📊 Checking pod status..."
-            kubectl get pods -n bankportal
-            kubectl get services -n bankportal
-          else
-            echo "ℹ️ Skipping deployment verification for environment: $DEPLOY_ENV"
-          fi
-          
-      - name: 🔍 Debug information (on failure)
-        if: failure()
-        run: |
-          # Set environment based on workflow trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            DEPLOY_ENV="${{ github.event.inputs.environment }}"
-          else
-            DEPLOY_ENV="dev"
-          fi
-          
-          echo "Debug Information:"
-          echo "==================="
-          echo "Environment: $DEPLOY_ENV"
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
-          
-          echo "Kubectl version:"
-          kubectl version --client --output=yaml
-          
-          echo "Kubeconfig content (first 5 lines):"
-          head -5 $HOME/.kube/config || echo "Could not read kubeconfig"
-          
-          if kubectl config current-context 2>/dev/null; then
-            echo "Current context found"
-            kubectl get namespaces || echo "Could not list namespaces"
-            kubectl get events -n bankportal --sort-by='.lastTimestamp' | tail -20 || echo "Could not get events"
-          else
-            echo "No current context - kubeconfig may be invalid"
-          fi
+          echo ""
+          echo "📈 Code-Qualität: https://sonarcloud.io/organizations/thanhtuanh"
+          echo "🐳 Container Registry: https://github.com/${{ github.repository }}/pkgs/container"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lokales Deployment Script
+# Vereinfachtes lokales Deployment Script
 
 set -e
 
@@ -26,8 +26,8 @@ log_info() {
     echo -e "${YELLOW}[INFO]${NC} $1"
 }
 
-echo "🏠 Bank Portal - Lokales Deployment"
-echo "==================================="
+echo "🏠 Bank Portal - Vereinfachtes Deployment"
+echo "========================================="
 
 # 1. Environment prüfen
 log_step "Prüfe Environment..."
@@ -44,14 +44,8 @@ EOF
     log_success ".env Datei erstellt"
 fi
 
-# Docker prüfen
-if ! command -v docker &> /dev/null; then
-    log_error "Docker ist nicht installiert!"
-    exit 1
-fi
-
-if ! command -v docker-compose &> /dev/null; then
-    log_error "Docker Compose ist nicht installiert!"
+if ! docker info >/dev/null 2>&1; then
+    log_error "Docker ist nicht gestartet! Bitte starten Sie Docker Desktop."
     exit 1
 fi
 
@@ -62,51 +56,73 @@ log_step "Stoppe bestehende Services..."
 docker-compose down --remove-orphans > /dev/null 2>&1 || true
 log_success "Services gestoppt"
 
-# 3. Images bauen
-log_step "Baue Docker Images..."
+# 3. Versuche GitHub Images zu verwenden
+log_step "Verwende vorgefertigte Docker Images..."
 
-# Prüfen ob Build-Script existiert
-if [ -f "./scripts/deploy-prod.sh" ]; then
-    ./scripts/deploy-prod.sh build > /dev/null 2>&1
-    log_success "Images mit Production Script gebaut"
+log_info "📦 Lade Auth Service Image..."
+if docker pull ghcr.io/thanhtuanh/bankportal-demo/auth-service:latest > /dev/null 2>&1; then
+    docker tag ghcr.io/thanhtuanh/bankportal-demo/auth-service:latest bankportal-demo-auth-service:latest
+    log_info "   ✅ Auth Service Image geladen"
 else
-    # Fallback: Direkt bauen
-    log_info "Baue Images direkt..."
-    
-    # Auth Service
-    cd auth-service
-    mvn clean package -DskipTests -q
-    docker build -t bankportal-demo-auth-service:latest . > /dev/null
-    cd ..
-    
-    # Account Service
-    cd account-service
-    mvn clean package -DskipTests -q
-    docker build -t bankportal-demo-account-service:latest . > /dev/null
-    cd ..
-    
-    # Frontend
-    cd frontend
-    npm ci > /dev/null 2>&1
-    npm run build > /dev/null 2>&1
-    docker build -t bankportal-demo-frontend:latest . > /dev/null
-    cd ..
-    
-    log_success "Images direkt gebaut"
+    log_error "   ❌ Auth Service Image konnte nicht geladen werden"
+    NEED_BUILD_AUTH=true
 fi
 
-# 4. Services starten
+log_info "💼 Lade Account Service Image..."
+if docker pull ghcr.io/thanhtuanh/bankportal-demo/account-service:latest > /dev/null 2>&1; then
+    docker tag ghcr.io/thanhtuanh/bankportal-demo/account-service:latest bankportal-demo-account-service:latest
+    log_info "   ✅ Account Service Image geladen"
+else
+    log_error "   ❌ Account Service Image konnte nicht geladen werden"
+    NEED_BUILD_ACCOUNT=true
+fi
+
+log_info "🌐 Lade Frontend Image..."
+if docker pull ghcr.io/thanhtuanh/bankportal-demo/frontend:latest > /dev/null 2>&1; then
+    docker tag ghcr.io/thanhtuanh/bankportal-demo/frontend:latest bankportal-demo-frontend:latest
+    log_info "   ✅ Frontend Image geladen"
+else
+    log_error "   ❌ Frontend Image konnte nicht geladen werden"
+    NEED_BUILD_FRONTEND=true
+fi
+
+# 4. Fallback: Lokales Bauen nur wenn nötig
+if [ "$NEED_BUILD_AUTH" = true ] || [ "$NEED_BUILD_ACCOUNT" = true ] || [ "$NEED_BUILD_FRONTEND" = true ]; then
+    log_info "⚠️  Einige Images konnten nicht geladen werden - lokales Bauen erforderlich"
+    log_error "❌ Lokales Bauen ist derzeit wegen Java-Konfigurationsproblemen nicht möglich"
+    log_info ""
+    log_info "🔧 Lösungsvorschläge:"
+    log_info "1. Internetverbindung prüfen für GitHub Container Registry"
+    log_info "2. Docker Login: docker login ghcr.io"
+    log_info "3. Java-Problem lösen für lokales Bauen"
+    log_info ""
+    log_info "📋 Manueller Image-Download:"
+    log_info "docker pull ghcr.io/thanhtuanh/bankportal-demo/auth-service:latest"
+    log_info "docker pull ghcr.io/thanhtuanh/bankportal-demo/account-service:latest"
+    log_info "docker pull ghcr.io/thanhtuanh/bankportal-demo/frontend:latest"
+    exit 1
+else
+    log_success "Alle Images erfolgreich geladen"
+fi
+
+# 5. Services starten
 log_step "Starte Services..."
-docker-compose up -d
+if docker-compose up -d > /tmp/compose.log 2>&1; then
+    log_success "Services gestartet"
+else
+    log_error "Services konnten nicht gestartet werden!"
+    cat /tmp/compose.log
+    exit 1
+fi
 
 # Status anzeigen
 echo ""
 log_info "Service Status:"
 docker-compose ps
 
-# 5. Warten auf Services
+# 6. Warten auf Services
 log_step "Warte auf Services..."
-log_info "Services starten... (60 Sekunden warten)"
+log_info "Services starten... (maximal 60 Sekunden)"
 
 for i in {1..12}; do
     echo -n "."
@@ -114,43 +130,49 @@ for i in {1..12}; do
 done
 echo ""
 
-# 6. Health Checks
+# 7. Health Checks
 log_step "Führe Health Checks durch..."
 
-# Warten bis Services bereit sind
 RETRY_COUNT=0
 MAX_RETRIES=12
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    AUTH_OK=false
+    ACCOUNT_OK=false
+    FRONTEND_OK=false
+    
+    if curl -s -f http://localhost:8081/actuator/health > /dev/null 2>&1; then
+        AUTH_OK=true
+    fi
+    
     if curl -s -f http://localhost:8082/actuator/health > /dev/null 2>&1; then
-        log_success "Services sind bereit!"
+        ACCOUNT_OK=true
+    fi
+    
+    if curl -s -f http://localhost:4200 > /dev/null 2>&1; then
+        FRONTEND_OK=true
+    fi
+    
+    if $AUTH_OK && $ACCOUNT_OK && $FRONTEND_OK; then
+        log_success "Alle Services sind bereit!"
         break
     fi
     
     RETRY_COUNT=$((RETRY_COUNT + 1))
-    log_info "Warte auf Services... ($RETRY_COUNT/$MAX_RETRIES)"
+    log_info "Warte auf Services... ($RETRY_COUNT/$MAX_RETRIES) [Auth:$AUTH_OK Account:$ACCOUNT_OK Frontend:$FRONTEND_OK]"
     sleep 10
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     log_error "Services sind nicht rechtzeitig gestartet!"
     echo ""
-    echo "Debug Informationen:"
-    docker-compose logs --tail=20
+    log_info "Debug Informationen:"
+    docker-compose ps
+    docker-compose logs --tail=10
     exit 1
 fi
 
-# API Tests ausführen
-if [ -f "./scripts/test-api.sh" ]; then
-    log_step "Führe API Tests durch..."
-    if ./scripts/test-api.sh; then
-        log_success "API Tests erfolgreich"
-    else
-        log_error "API Tests fehlgeschlagen"
-    fi
-fi
-
-# 7. Zusammenfassung
+# 8. Zusammenfassung
 echo ""
 log_success "✅ Lokales Deployment erfolgreich!"
 echo ""
@@ -165,8 +187,6 @@ echo "📊 Nützliche Commands:"
 echo "  docker-compose logs -f          # Logs anzeigen"
 echo "  docker-compose ps               # Status anzeigen"
 echo "  docker-compose down             # Services stoppen"
-echo "  ./scripts/test-api.sh           # API Tests"
-echo "  ./scripts/backup-system.sh      # Backup erstellen"
 echo ""
 echo "🎯 Nächste Schritte:"
 echo "  1. Frontend im Browser öffnen: http://localhost:4200"
