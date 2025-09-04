@@ -13,6 +13,8 @@ volumes:
     driver: local
   account_data:
     driver: local
+  redis_data:
+    driver: local
 
 services:
   # PostgreSQL für Auth-Service
@@ -57,6 +59,24 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Redis für Caching/Health (Account-Service)
+  redis:
+    image: redis:7-alpine
+    container_name: bankportal-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   # Auth Service
   auth-service:
     build:
@@ -81,7 +101,7 @@ services:
     networks:
       - bank-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/api/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -102,6 +122,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-account:5432/accountdb
       SPRING_DATASOURCE_USERNAME: admin
       SPRING_DATASOURCE_PASSWORD: admin
+
+      # 🔴 Wichtig: Kein "localhost" in Containern – auf Service-Namen verweisen!
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
       AUTH_SERVICE_URL: http://auth-service:8081
       JWT_SECRET: demo-jwt-secret-change-in-production
       CORS_ALLOWED_ORIGINS: http://localhost:4200
@@ -111,17 +136,19 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - bank-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
     restart: unless-stopped
 
-  # Frontend (Angular)
+  # Frontend (Angular via Nginx)
   frontend:
     build:
       context: ./frontend
@@ -130,17 +157,19 @@ services:
     ports:
       - "4200:80"
     environment:
-      # Demo-Konfiguration
+      # Demo-Konfiguration – der Browser ruft localhost:8081/8082 auf
       API_BASE_URL: http://localhost:8081
       ACCOUNT_API_URL: http://localhost:8082
       NODE_ENV: development
     depends_on:
-      - auth-service
-      - account-service
+      auth-service:
+        condition: service_healthy
+      account-service:
+        condition: service_healthy
     networks:
       - bank-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
