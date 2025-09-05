@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 NAMESPACE="bankportal"
-K8S_DIR="k8s"
+K8S_DIR="temp-k8s-files"
 MONITORING_ENABLED=true
 DASHBOARD_ENABLED=true
 
