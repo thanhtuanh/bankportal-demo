@@ -266,6 +266,7 @@ tmp/
 # KUBERNETES & DEPLOYMENT
 # =============================================================================
 
+/temp-k8s-files
 # Kubernetes secrets
 k8s/secrets/
 k8s/generated/
@@ -361,3 +362,4 @@ swagger-output/
 cache/
 .npm/
 .yarn/
+
