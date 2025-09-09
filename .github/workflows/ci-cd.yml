@@ -340,8 +340,11 @@ jobs:
           fi
           echo ""
           echo "📈 Code-Qualität: https://sonarcloud.io/organizations/thanhtuanh"
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🐳 Container Images:" >> $GITHUB_STEP_SUMMARY
-          echo "- Auth Service: https://github.com/users/${OWNER}/packages/container/package/bankportal-demo%2Fauth-service" >> $GITHUB_STEP_SUMMARY
-          echo "- Account Service: https://github.com/users/${OWNER}/packages/container/package/bankportal-demo%2Faccount-service" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: https://github.com/users/${OWNER}/packages/container/package/bankportal-demo%2Ffrontend" >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "🐳 Container Images:"
+
+          echo "- Auth Service: https://github.com/users/${OWNER}/packages/container/package/bankportal-demo%2Fauth-service"
+
+          echo "- Account Service: https://github.com/users/${OWNER}/packages/container/package/bankportal-demo%2Faccount-service"
+          
+          echo "- Frontend: https://github.com/users/${OWNER}/packages/container/package/bankportal-demo%2Ffrontend"
