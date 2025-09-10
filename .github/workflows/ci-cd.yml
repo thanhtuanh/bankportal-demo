@@ -354,7 +354,6 @@ jobs:
             -e POSTGRES_DB=bank \
             -p 5432:5432 postgres:15
           
-          # Wait until Postgres is ready with better error handling
           echo "Waiting for PostgreSQL to be ready..."
           for i in {1..60}; do
             if docker exec itest-pg pg_isready -U bank -d bank > /dev/null 2>&1; then
@@ -364,11 +363,16 @@ jobs:
             echo "Waiting for PostgreSQL... attempt $i/60"
             if [ $i -eq 60 ]; then
               echo "PostgreSQL failed to start in time"
-              docker logs itest-pg
+              docker logs itest-pg | tail -200
               exit 1
             fi
             sleep 2
           done
+
+      - name: Prepare DB schemas
+        run: |
+          docker exec -u postgres itest-pg psql -d bank -c "CREATE SCHEMA IF NOT EXISTS auth;"
+          docker exec -u postgres itest-pg psql -d bank -c "CREATE SCHEMA IF NOT EXISTS account;"
 
       - name: Start Auth Service
         run: |
@@ -376,12 +380,16 @@ jobs:
             -e SPRING_DATASOURCE_URL=jdbc:postgresql://itest-pg:5432/bank \
             -e SPRING_DATASOURCE_USERNAME=bank \
             -e SPRING_DATASOURCE_PASSWORD=pass \
+            -e SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA=auth \
+            -e SPRING_FLYWAY_DEFAULT_SCHEMA=auth \
+            -e SPRING_FLYWAY_SCHEMAS=auth \
+            -e SPRING_LIQUIBASE_DEFAULT_SCHEMA=auth \
+            -e MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,readiness,liveness \
+            -e MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
             -e SERVER_PORT=8080 \
             -e LOGGING_LEVEL_ROOT=INFO \
             -p 8081:8080 ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest
-          
-          # Wait for auth service to start
           echo "Waiting for Auth Service to start..."
           sleep 10
 
@@ -391,111 +399,75 @@ jobs:
             -e SPRING_DATASOURCE_URL=jdbc:postgresql://itest-pg:5432/bank \
             -e SPRING_DATASOURCE_USERNAME=bank \
             -e SPRING_DATASOURCE_PASSWORD=pass \
+            -e SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA=account \
+            -e SPRING_FLYWAY_DEFAULT_SCHEMA=account \
+            -e SPRING_FLYWAY_SCHEMAS=account \
+            -e SPRING_LIQUIBASE_DEFAULT_SCHEMA=account \
+            -e MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,readiness,liveness \
+            -e MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
             -e SERVER_PORT=8080 \
             -e LOGGING_LEVEL_ROOT=INFO \
             -p 8082:8080 ghcr.io/${{ env.IMAGE_NAME }}/account-service:latest
-          
-          # Wait for account service to start
           echo "Waiting for Account Service to start..."
           sleep 10
 
       - name: Wait for services to be healthy
         run: |
+          set -e
           echo "Checking service health..."
-          
-          # Function to check if a URL returns HTTP 200
-          check_health() {
-            local url=$1
-            local service_name=$2
-            curl -sSf --connect-timeout 5 --max-time 10 "$url" > /dev/null 2>&1
-            return $?
-          }
-          
-          # Wait up to 3 minutes for services to be healthy
+          check_health() { curl -fsS --connect-timeout 5 --max-time 10 "$1" >/dev/null; }
+
           max_attempts=60
-          attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
+          for attempt in $(seq 1 $max_attempts); do
             echo "Health check attempt $attempt/$max_attempts"
-            
-            auth_healthy=false
-            account_healthy=false
-            
-            # Check auth service
-            if check_health "http://localhost:8081/actuator/health" "auth"; then
-              echo "✓ Auth service is healthy"
-              auth_healthy=true
+
+            auth_ok=false
+            account_ok=false
+
+            if check_health "http://localhost:8081/actuator/health"; then
+              echo "✓ Auth service is healthy"; auth_ok=true
             else
               echo "✗ Auth service not ready"
             fi
-            
-            # Check account service  
-            if check_health "http://localhost:8082/actuator/health" "account"; then
-              echo "✓ Account service is healthy"
-              account_healthy=true
+
+            if check_health "http://localhost:8082/actuator/health"; then
+              echo "✓ Account service is healthy"; account_ok=true
             else
               echo "✗ Account service not ready"
             fi
-            
-            # Both services healthy?
-            if [ "$auth_healthy" = true ] && [ "$account_healthy" = true ]; then
+
+            if $auth_ok && $account_ok; then
               echo "🎉 All services are healthy!"
-              break
+              exit 0
             fi
-            
-            # Last attempt failed?
+
             if [ $attempt -eq $max_attempts ]; then
               echo "💥 Services failed to become healthy within timeout"
+              echo "---- Auth logs (last 200 lines) ----"
+              docker logs --tail 200 itest-auth || true
+              echo "---- Account logs (last 200 lines) ----"
+              docker logs --tail 200 itest-account || true
+              echo "---- Postgres logs (last 200 lines) ----"
+              docker logs --tail 200 itest-pg || true
               exit 1
             fi
-            
+
             echo "Waiting 3 seconds before next attempt..."
             sleep 3
-            attempt=$((attempt + 1))
           done
-
-      - name: Cleanup containers
-        if: always()
-        run: |
-          echo "Cleaning up containers for ${{ matrix.test_mode }} mode..."
-          docker rm -f itest-account-${{ matrix.test_mode }} itest-auth-${{ matrix.test_mode }} itest-pg-${{ matrix.test_mode }} || true
-          docker network rm itest-net-${{ matrix.test_mode }} || true itest-account 2>&1 | tail -50 || true
-          
-          echo ""
-          echo "Account service process status:"
-          docker exec itest-account ps aux 2>/dev/null || echo "Could not check processes"
-          
-          echo ""
-          echo "=== Network Connectivity Tests ==="
-          echo "Testing connectivity from auth to postgres:"
-          docker exec itest-auth nc -zv itest-pg 5432 2>&1 || echo "Connection failed"
-          
-          echo "Testing connectivity from account to postgres:"
-          docker exec itest-account nc -zv itest-pg 5432 2>&1 || echo "Connection failed"
-          
-          echo ""
-          echo "=== Host Connectivity Tests ==="
-          echo "Testing local ports:"
-          netstat -tlnp | grep -E "(8081|8082|5432)" || echo "No matching ports found"
 
       - name: Test API endpoints
         run: |
           echo "Testing API endpoints..."
-          
-          # Test health endpoints
           echo "Testing auth service health..."
-          curl -v http://localhost:8081/actuator/health
+          curl -v http://localhost:8081/actuator/health || true
           echo ""
-          
           echo "Testing account service health..."
-          curl -v http://localhost:8082/actuator/health
+          curl -v http://localhost:8082/actuator/health || true
           echo ""
-          
-          # Test additional endpoints if available
           echo "Testing auth service info (if available)..."
           curl -sSf http://localhost:8081/actuator/info 2>/dev/null || echo "Info endpoint not available"
-          
           echo "Testing account service info (if available)..."
           curl -sSf http://localhost:8082/actuator/info 2>/dev/null || echo "Info endpoint not available"
 
