@@ -7,6 +7,14 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -14,9 +22,15 @@ env:
   JAVA_VERSION: '17'
 
 jobs:
+  # =========================
+  # Frontend: Test + Build
+  # =========================
   frontend-build:
     name: 🌐 Frontend Build & Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,21 +38,25 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: |
-          cd frontend
-          if [ -f package-lock.json ]; then
-            npm ci --legacy-peer-deps
-          else
-            npm install --legacy-peer-deps
-          fi
-      - run: |
-          cd frontend
-          npm run build:prod
-      - uses: actions/upload-artifact@v4
+
+      - name: Install deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Run unit tests (headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadless
+
+      - name: Build (prod)
+        run: npm run build:prod
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
 
+  # ==================================
+  # Auth Service: Tests + Artifact
+  # ==================================
   auth-service-build:
     name: 🔐 Auth Service Build & Test
     runs-on: ubuntu-latest
@@ -53,6 +71,11 @@ jobs:
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
         ports: ['5432:5432']
+
+    defaults:
+      run:
+        working-directory: auth-service
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -60,22 +83,35 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
-      - run: |
-          cd auth-service
-          mvn test || echo "Tests failed, but continuing"
+
+      - name: Verify (unit+it tests)
+        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true verify
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
-      - run: |
-          cd auth-service
-          mvn clean package -DskipTests
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-test-reports
+          path: |
+            auth-service/target/surefire-reports/**
+            auth-service/target/failsafe-reports/**
+
+      - name: Package (no tests)
+        run: mvn -B -ntp -DskipTests package
+
       - uses: actions/upload-artifact@v4
         with:
           name: auth-service-jar
           path: auth-service/target/*.jar
 
+  # ======================================
+  # Account Service: Tests + Artifact
+  # ======================================
   account-service-build:
     name: 💼 Account Service Build & Test
     runs-on: ubuntu-latest
@@ -90,6 +126,11 @@ jobs:
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
         ports: ['5433:5432']
+
+    defaults:
+      run:
+        working-directory: account-service
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -97,41 +138,45 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
-      - run: |
-          cd account-service
-          mvn test || echo "Tests failed, but continuing"
+
+      - name: Verify (unit+it tests)
+        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true verify
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkey123456
-      - run: |
-          cd account-service
-          mvn clean package -DskipTests
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: account-service-test-reports
+          path: |
+            account-service/target/surefire-reports/**
+            account-service/target/failsafe-reports/**
+
+      - name: Package (no tests)
+        run: mvn -B -ntp -DskipTests package
+
       - uses: actions/upload-artifact@v4
         with:
           name: account-service-jar
           path: account-service/target/*.jar
 
+  # =====================
+  # SonarCloud Scans
+  # =====================
   sonar-auth-service:
     name: 🔍 SonarCloud Analysis - Auth Service
     runs-on: ubuntu-latest
     needs: [auth-service-build]
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: authdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
-        ports: ['5432:5432']
+    defaults:
+      run:
+        working-directory: auth-service
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -144,40 +189,27 @@ jobs:
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-      - run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+      - name: Sonar scan
+        run: |
+          mvn -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=thanhtuanh_bankportal-demo-auth-service \
             -Dsonar.projectName="Bank Portal Auth Service" \
             -Dsonar.organization=thanhtuanh \
             -Dsonar.host.url=https://sonarcloud.io
-        working-directory: auth-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkeytestsecretkey123456
 
   sonar-account-service:
     name: 🔍 SonarCloud Analysis - Account Service
     runs-on: ubuntu-latest
     needs: [account-service-build]
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: accountdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
-        ports: ['5433:5432']
+    defaults:
+      run:
+        working-directory: account-service
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -190,38 +222,68 @@ jobs:
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-      - run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+      - name: Sonar scan
+        run: |
+          mvn -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=thanhtuanh_bankportal-demo-account-service \
             -Dsonar.projectName="Bank Portal Account Service" \
             -Dsonar.organization=thanhtuanh \
             -Dsonar.host.url=https://sonarcloud.io
-        working-directory: account-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
-          JWT_SECRET: testsecretkeytestsecretkey123456
-          
+
+  # =========================
+  # Docker Build & Push
+  # =========================
   docker-build:
     name: 🐳 Docker Build & Push
     runs-on: ubuntu-latest
     needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
-      - name: 🔐 Login to GHCR
-        uses: docker/login-action@v2
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: docker/setup-buildx-action@v3
+
+      # metadata + tags for each image
+      - name: Meta (auth)
+        id: meta_auth
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.IMAGE_NAME }}/auth-service
+          tags: |
+            type=raw,value=latest
+            type=sha
+            type=ref,event=branch
+
+      - name: Meta (account)
+        id: meta_account
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.IMAGE_NAME }}/account-service
+          tags: |
+            type=raw,value=latest
+            type=sha
+            type=ref,event=branch
+
+      - name: Meta (frontend)
+        id: meta_frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=raw,value=latest
+            type=sha
+            type=ref,event=branch
+
       - uses: actions/download-artifact@v4
         with:
           name: frontend-dist
@@ -234,23 +296,109 @@ jobs:
         with:
           name: account-service-jar
           path: ./account-service/target/
-      - run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest auth-service
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:latest
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest account-service
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/account-service:latest
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest frontend
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
 
+      - name: Build & push auth-service
+        uses: docker/build-push-action@v6
+        with:
+          context: auth-service
+          push: true
+          tags: ${{ steps.meta_auth.outputs.tags }}
+          labels: ${{ steps.meta_auth.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push account-service
+        uses: docker/build-push-action@v6
+        with:
+          context: account-service
+          push: true
+          tags: ${{ steps.meta_account.outputs.tags }}
+          labels: ${{ steps.meta_account.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: true
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =========================
+  # Simple Integration Tests
+  # =========================
   integration-test:
-    name: 🧪 Integration Tests
+    name: 🧪 Integration Tests (health checks)
     runs-on: ubuntu-latest
     needs: [docker-build]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
-      - run: echo "✅ Integration tests passed"
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create network
+        run: docker network create itest-net
+
+      - name: Start Postgres
+        run: |
+          docker run -d --rm --name itest-pg --network itest-net \
+            -e POSTGRES_PASSWORD=pass -e POSTGRES_USER=bank -e POSTGRES_DB=bank \
+            -p 5432:5432 postgres:15
+          for i in {1..20}; do
+            (docker exec itest-pg pg_isready && exit 0) || true
+            sleep 3
+          done
+
+      - name: Start Auth Service
+        run: |
+          docker run -d --rm --name itest-auth --network itest-net \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://itest-pg:5432/bank \
+            -e SPRING_DATASOURCE_USERNAME=bank \
+            -e SPRING_DATASOURCE_PASSWORD=pass \
+            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -p 8081:8081 ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest
+
+      - name: Start Account Service
+        run: |
+          docker run -d --rm --name itest-account --network itest-net \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://itest-pg:5432/bank \
+            -e SPRING_DATASOURCE_USERNAME=bank \
+            -e SPRING_DATASOURCE_PASSWORD=pass \
+            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -p 8082:8082 ghcr.io/${{ env.IMAGE_NAME }}/account-service:latest
+
+      - name: Wait for services
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:8081/actuator/health >/dev/null && \
+               curl -sSf http://localhost:8082/actuator/health >/dev/null; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Services not healthy in time" && exit 1
+
+      - name: Probe APIs (example)
+        run: |
+          curl -sSf http://localhost:8081/actuator/health
+          curl -sSf http://localhost:8082/actuator/health
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f itest-account itest-auth itest-pg || true
+          docker network rm itest-net || true
+
+  # =========================
+  # Deployment Info (Summary)
+  # =========================
   deployment-options:
     name: 🚀 Deployment Options
     runs-on: ubuntu-latest
@@ -259,57 +407,32 @@ jobs:
     steps:
       - name: 🎉 Deployment Ready
         run: |
-          echo "🎉 Docker Images erfolgreich erstellt und gepusht!"
+          echo "🎉 Docker Images erstellt & gepusht!"
           echo ""
-          echo "🚀 DEPLOYMENT OPTIONEN:"
-          echo "┌─────────────────────────────────────────────────────────┐"
-          echo "│  OPTION 1: Docker Compose (Einfach)                    │"
-          echo "│  git pull origin main                                   │"
-          echo "│  ./scripts/deploy-local.sh                             │"
-          echo "│                                                         │"
-          echo "│  OPTION 2: Kubernetes Demo (Lernen & Demo)             │"
-          echo "│  git pull origin main                                   │"
-          echo "│  ./scripts/start-k8s-demo.sh                           │"
-          echo "│                                                         │"
-          echo "│  OPTION 3: Kubernetes Minimal                          │"
-          echo "│  ./scripts/start-k8s-demo.sh --minimal                 │"
-          echo "└─────────────────────────────────────────────────────────┘"
-          echo ""
-          echo "🐳 Verfügbare Docker Images:"
+          echo "🐳 Images:"
           echo "  - ghcr.io/${{ github.repository }}/auth-service:latest"
-          echo "  - ghcr.io/${{ github.repository }}/account-service:latest" 
+          echo "  - ghcr.io/${{ github.repository }}/account-service:latest"
           echo "  - ghcr.io/${{ github.repository }}/frontend:latest"
           echo ""
-          echo "🌐 Services verfügbar unter:"
-          echo "  - Frontend:     http://localhost:4200"
-          echo "  - Auth API:     http://localhost:8081" 
-          echo "  - Account API:  http://localhost:8082"
-          echo ""
-          echo "📊 K8s Demo Features (start-k8s-demo.sh):"
-          echo "  ✅ Vollständige Kubernetes Manifeste"
-          echo "  ✅ Prometheus & Grafana Monitoring"
-          echo "  ✅ Kubernetes Dashboard"
-          echo "  ✅ Port Forwarding Setup"
-          echo "  ✅ Demo-Daten & Benutzer"
-          echo ""
-          echo "📚 Weitere Commands:"
-          echo "  ./scripts/test-api.sh           # API Tests ausführen"
-          echo "  ./scripts/docker-backup.sh      # Datenbank-Backup"
-          echo "  ./scripts/stop-k8s-demo.sh      # K8s Demo stoppen"
-          echo "  docker-compose logs -f          # Docker Logs anzeigen"
-          echo "  kubectl get pods -n bankportal  # K8s Pods anzeigen"
+          echo "👉 Compose: ./scripts/deploy-local.sh"
+          echo "👉 K8s Demo: ./scripts/start-k8s-demo.sh [--minimal]"
 
+  # =========================
+  # Pipeline Summary
+  # =========================
   deployment-report:
     name: 📊 Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [frontend-build, auth-service-build, account-service-build, sonar-auth-service, sonar-account-service, docker-build, integration-test, deployment-options]
+    needs:
+      [frontend-build, auth-service-build, account-service-build,
+       sonar-auth-service, sonar-account-service, docker-build,
+       integration-test, deployment-options]
     if: always()
     steps:
       - name: 📊 Build Summary
         run: |
           echo "🏗️ BANK PORTAL CI/CD PIPELINE SUMMARY"
           echo "====================================="
-          echo ""
           echo "📦 Frontend Build:        ${{ needs.frontend-build.result }}"
           echo "🔐 Auth Service Build:    ${{ needs.auth-service-build.result }}"
           echo "💼 Account Service Build: ${{ needs.account-service-build.result }}"
@@ -319,30 +442,8 @@ jobs:
           echo "🧪 Integration Tests:     ${{ needs.integration-test.result }}"
           echo "🚀 Deployment Options:    ${{ needs.deployment-options.result }}"
           echo ""
-          if [[ "${{ needs.docker-build.result }}" == "success" ]]; then
-            echo "✅ Pipeline erfolgreich - Bereit für Deployment!"
-            echo ""
-            echo "🚀 Deployment-Optionen:"
-            echo "  📦 Docker Compose: ./scripts/deploy-local.sh"
-            echo "  ☸️  Kubernetes Demo: ./scripts/start-k8s-demo.sh"
-            echo ""
-            echo "🧪 Für Kubernetes-Lernen und Demo:"
-            echo "  ./scripts/start-k8s-demo.sh    # Vollständige Demo"
-            echo "  ./scripts/start-k8s-demo.sh --minimal  # Nur Services"
-            echo ""
-            echo "📚 Tutorials & Lernen:"
-            echo "  ✅ Kubernetes Manifeste in k8s/ Verzeichnis"
-            echo "  ✅ Monitoring mit Prometheus & Grafana"
-            echo "  ✅ Health Checks & Readiness Probes" 
-            echo "  ✅ ConfigMaps & Secrets Management"
-          else
-            echo "❌ Pipeline fehlgeschlagen. Überprüfen Sie die Logs."
-          fi
-          echo ""
-          echo "📈 Code-Qualität: https://sonarcloud.io/organizations/thanhtuanh"
-          echo ""
-          echo "🐳 Container Images:"
-          echo "- Auth Service: https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo%2Fauth-service"
-          echo "- Account Service: https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo%2Faccount-service"
-          echo "- Frontend: https://github.com/thanhtuanh/bankportal-demo/pkgs/container/bankportal-demo%2Ffrontend"
- 
+          echo "📈 SonarCloud Org: https://sonarcloud.io/organizations/thanhtuanh"
+          echo "🐳 GHCR Packages:"
+          echo "- Auth: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Fauth-service"
+          echo "- Account: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Faccount-service"
+          echo "- Frontend: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Ffrontend"
