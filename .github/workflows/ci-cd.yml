@@ -68,8 +68,8 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
+          --health-cmd "pg_isready -U test -d authdb_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
         ports: ['5432:5432']
 
     defaults:
@@ -90,6 +90,9 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
+          # Redis während Maven-Tests NICHT verwenden:
+          MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
+          SPRING_DATA_REDIS_CLIENT_TYPE: "none"
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Upload test reports
@@ -123,8 +126,8 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
+          --health-cmd "pg_isready -U test -d accountdb_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
         ports: ['5433:5432']
 
     defaults:
@@ -145,6 +148,9 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
+          # Redis während Maven-Tests NICHT verwenden:
+          MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
+          SPRING_DATA_REDIS_CLIENT_TYPE: "none"
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Upload test reports
@@ -253,7 +259,6 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # metadata + tags for each image
       - name: Meta (auth)
         id: meta_auth
         uses: docker/metadata-action@v5
@@ -353,20 +358,38 @@ jobs:
             -e POSTGRES_PASSWORD=pass \
             -e POSTGRES_DB=bank \
             -p 5432:5432 postgres:15
-          
+
           echo "Waiting for PostgreSQL to be ready..."
           for i in {1..60}; do
             if docker exec itest-pg bash -lc 'PGPASSWORD=pass pg_isready -h 127.0.0.1 -U bank -d bank >/dev/null 2>&1'; then
               echo "PostgreSQL is ready after $i attempts"
               break
             fi
-            echo "Waiting for PostgreSQL... attempt $i/60"
+            sleep 2
             if [ $i -eq 60 ]; then
               echo "PostgreSQL failed to start in time"
               docker logs itest-pg | tail -200
               exit 1
             fi
-            sleep 2
+          done
+
+      - name: Start Redis
+        run: |
+          docker run -d --rm --name itest-redis --network itest-net \
+            -p 6379:6379 redis:7
+
+          echo "Waiting for Redis to be ready..."
+          for i in {1..60}; do
+            if docker exec itest-redis bash -lc 'redis-cli -h 127.0.0.1 -p 6379 PING | grep -q PONG'; then
+              echo "Redis is ready after $i attempts"
+              break
+            fi
+            sleep 1
+            if [ $i -eq 60 ]; then
+              echo "Redis failed to start in time"
+              docker logs itest-redis | tail -200 || true
+              exit 1
+            fi
           done
 
       - name: Prepare DB schemas
@@ -384,6 +407,8 @@ jobs:
             -e SPRING_FLYWAY_DEFAULT_SCHEMA=auth \
             -e SPRING_FLYWAY_SCHEMAS=auth \
             -e SPRING_LIQUIBASE_DEFAULT_SCHEMA=auth \
+            -e SPRING_DATA_REDIS_HOST=itest-redis \
+            -e SPRING_DATA_REDIS_PORT=6379 \
             -e MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,readiness,liveness \
             -e MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
@@ -403,6 +428,8 @@ jobs:
             -e SPRING_FLYWAY_DEFAULT_SCHEMA=account \
             -e SPRING_FLYWAY_SCHEMAS=account \
             -e SPRING_LIQUIBASE_DEFAULT_SCHEMA=account \
+            -e SPRING_DATA_REDIS_HOST=itest-redis \
+            -e SPRING_DATA_REDIS_PORT=6379 \
             -e MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,readiness,liveness \
             -e MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
@@ -450,6 +477,8 @@ jobs:
               docker logs --tail 200 itest-account || true
               echo "---- Postgres logs (last 200 lines) ----"
               docker logs --tail 200 itest-pg || true
+              echo "---- Redis logs (last 200 lines) ----"
+              docker logs --tail 200 itest-redis || true
               exit 1
             fi
 
@@ -460,22 +489,16 @@ jobs:
       - name: Test API endpoints
         run: |
           echo "Testing API endpoints..."
-          echo "Testing auth service health..."
-          curl -v http://localhost:8081/actuator/health || true
-          echo ""
-          echo "Testing account service health..."
-          curl -v http://localhost:8082/actuator/health || true
-          echo ""
-          echo "Testing auth service info (if available)..."
-          curl -sSf http://localhost:8081/actuator/info 2>/dev/null || echo "Info endpoint not available"
-          echo "Testing account service info (if available)..."
-          curl -sSf http://localhost:8082/actuator/info 2>/dev/null || echo "Info endpoint not available"
+          curl -sS http://localhost:8081/actuator/health || true
+          curl -sS http://localhost:8082/actuator/health || true
+          curl -sS http://localhost:8081/actuator/info || echo "Auth info N/A"
+          curl -sS http://localhost:8082/actuator/info || echo "Account info N/A"
 
       - name: Cleanup containers
         if: always()
         run: |
           echo "Cleaning up containers..."
-          docker rm -f itest-account itest-auth itest-pg || true
+          docker rm -f itest-account itest-auth itest-redis itest-pg || true
           docker network rm itest-net || true
 
   # =========================
