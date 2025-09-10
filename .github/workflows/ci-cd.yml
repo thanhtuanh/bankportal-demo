@@ -379,9 +379,11 @@ jobs:
 
       - name: Wait for services
         run: |
-          for i in {1..60}; do
-            if curl -sSf --connect-timeout 5 http://localhost:8081/actuator/health >/dev/null 2>&1 && \
-               curl -sSf --connect-timeout 5 http://localhost:8082/actuator/health >/dev/null 2>&1; then
+          for i in {1..40}; do
+            auth_health=$(curl -sSf --connect-timeout 5 http://localhost:8081/actuator/health 2>/dev/null || echo "down")
+            account_health=$(curl -sSf --connect-timeout 5 http://localhost:8082/actuator/health 2>/dev/null || echo "down")
+            echo "Attempt $i: Auth=$auth_health, Account=$account_health"
+            if [ "$auth_health" != "down" ] && [ "$account_health" != "down" ]; then
               exit 0
             fi
             sleep 3
