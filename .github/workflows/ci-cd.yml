@@ -353,10 +353,21 @@ jobs:
             -e POSTGRES_PASSWORD=pass \
             -e POSTGRES_DB=bank \
             -p 5432:5432 postgres:15
-          # Wait until Postgres is ready
-          for i in {1..40}; do
-            docker exec itest-pg pg_isready && break || true
-            sleep 3
+          
+          # Wait until Postgres is ready with better error handling
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..60}; do
+            if docker exec itest-pg pg_isready -U bank -d bank > /dev/null 2>&1; then
+              echo "PostgreSQL is ready after $i attempts"
+              break
+            fi
+            echo "Waiting for PostgreSQL... attempt $i/60"
+            if [ $i -eq 60 ]; then
+              echo "PostgreSQL failed to start in time"
+              docker logs itest-pg
+              exit 1
+            fi
+            sleep 2
           done
 
       - name: Start Auth Service
@@ -366,7 +377,13 @@ jobs:
             -e SPRING_DATASOURCE_USERNAME=bank \
             -e SPRING_DATASOURCE_PASSWORD=pass \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -e SERVER_PORT=8080 \
+            -e LOGGING_LEVEL_ROOT=INFO \
             -p 8081:8080 ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest
+          
+          # Wait for auth service to start
+          echo "Waiting for Auth Service to start..."
+          sleep 10
 
       - name: Start Account Service
         run: |
@@ -375,39 +392,114 @@ jobs:
             -e SPRING_DATASOURCE_USERNAME=bank \
             -e SPRING_DATASOURCE_PASSWORD=pass \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -e SERVER_PORT=8080 \
+            -e LOGGING_LEVEL_ROOT=INFO \
             -p 8082:8080 ghcr.io/${{ env.IMAGE_NAME }}/account-service:latest
+          
+          # Wait for account service to start
+          echo "Waiting for Account Service to start..."
+          sleep 10
 
-      - name: Wait for services
+      - name: Wait for services to be healthy
         run: |
-          for i in {1..40}; do
-            auth_health=$(curl -sSf --connect-timeout 5 http://localhost:8081/actuator/health 2>/dev/null || echo "down")
-            account_health=$(curl -sSf --connect-timeout 5 http://localhost:8082/actuator/health 2>/dev/null || echo "down")
-            echo "Attempt $i: Auth=$auth_health, Account=$account_health"
-            if [ "$auth_health" != "down" ] && [ "$account_health" != "down" ]; then
-              exit 0
+          echo "Checking service health..."
+          
+          # Function to check if a URL returns HTTP 200
+          check_health() {
+            local url=$1
+            local service_name=$2
+            curl -sSf --connect-timeout 5 --max-time 10 "$url" > /dev/null 2>&1
+            return $?
+          }
+          
+          # Wait up to 3 minutes for services to be healthy
+          max_attempts=60
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Health check attempt $attempt/$max_attempts"
+            
+            auth_healthy=false
+            account_healthy=false
+            
+            # Check auth service
+            if check_health "http://localhost:8081/actuator/health" "auth"; then
+              echo "✓ Auth service is healthy"
+              auth_healthy=true
+            else
+              echo "✗ Auth service not ready"
             fi
+            
+            # Check account service  
+            if check_health "http://localhost:8082/actuator/health" "account"; then
+              echo "✓ Account service is healthy"
+              account_healthy=true
+            else
+              echo "✗ Account service not ready"
+            fi
+            
+            # Both services healthy?
+            if [ "$auth_healthy" = true ] && [ "$account_healthy" = true ]; then
+              echo "🎉 All services are healthy!"
+              break
+            fi
+            
+            # Last attempt failed?
+            if [ $attempt -eq $max_attempts ]; then
+              echo "💥 Services failed to become healthy within timeout"
+              exit 1
+            fi
+            
+            echo "Waiting 3 seconds before next attempt..."
             sleep 3
+            attempt=$((attempt + 1))
           done
-          echo "Services not healthy in time" && exit 1
 
-      - name: Show logs if fail
+      - name: Show service status
+        run: |
+          echo "=== Service Status ==="
+          docker ps --filter "name=itest-"
+          echo ""
+          echo "=== Port bindings ==="
+          docker port itest-auth || true
+          docker port itest-account || true
+
+      - name: Show logs if services not healthy
         if: failure()
         run: |
           echo "==== Postgres logs ===="
-          docker logs itest-pg || true
-          echo "==== Auth logs ===="
-          docker logs itest-auth || true
-          echo "==== Account logs ===="
-          docker logs itest-account || true
+          docker logs itest-pg 2>&1 | tail -50 || true
+          echo ""
+          echo "==== Auth service logs ===="  
+          docker logs itest-auth 2>&1 | tail -50 || true
+          echo ""
+          echo "==== Account service logs ===="
+          docker logs itest-account 2>&1 | tail -50 || true
 
-      - name: Probe APIs (example)
+      - name: Test API endpoints
         run: |
-          curl -sSf http://localhost:8081/actuator/health
-          curl -sSf http://localhost:8082/actuator/health
+          echo "Testing API endpoints..."
+          
+          # Test health endpoints
+          echo "Testing auth service health..."
+          curl -v http://localhost:8081/actuator/health
+          echo ""
+          
+          echo "Testing account service health..."
+          curl -v http://localhost:8082/actuator/health
+          echo ""
+          
+          # Test additional endpoints if available
+          echo "Testing auth service info (if available)..."
+          curl -sSf http://localhost:8081/actuator/info 2>/dev/null || echo "Info endpoint not available"
+          
+          echo "Testing account service info (if available)..."
+          curl -sSf http://localhost:8082/actuator/info 2>/dev/null || echo "Info endpoint not available"
 
-      - name: Cleanup
+      - name: Cleanup containers
         if: always()
         run: |
+          echo "Cleaning up containers..."
           docker rm -f itest-account itest-auth itest-pg || true
           docker network rm itest-net || true
 
@@ -461,4 +553,4 @@ jobs:
           echo "🐳 GHCR Packages:"
           echo "- Auth: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Fauth-service"
           echo "- Account: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Faccount-service"
-          echo "- Frontend: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Ffrontend" 
+          echo "- Frontend: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Ffrontend"
