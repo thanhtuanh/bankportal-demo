@@ -461,4 +461,4 @@ jobs:
           echo "🐳 GHCR Packages:"
           echo "- Auth: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Fauth-service"
           echo "- Account: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Faccount-service"
-          echo "- Frontend: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Ffrontend"
+          echo "- Frontend: https://github.com/${{ github.repository }}/pkgs/container/bankportal-demo%2Ffrontend" 
