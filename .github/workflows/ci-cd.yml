@@ -455,52 +455,12 @@ jobs:
             attempt=$((attempt + 1))
           done
 
-      - name: Show service status
+      - name: Cleanup containers
+        if: always()
         run: |
-          echo "=== Service Status ==="
-          docker ps --filter "name=itest-"
-          echo ""
-          echo "=== Port bindings ==="
-          docker port itest-auth || true
-          docker port itest-account || true
-
-      - name: Show logs if services not healthy
-        if: failure()
-        run: |
-          echo "==============================================="
-          echo "           DETAILED FAILURE ANALYSIS"
-          echo "==============================================="
-          
-          echo ""
-          echo "=== Container Status ==="
-          docker ps -a --filter "name=itest-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-          
-          echo ""
-          echo "=== Network Information ==="
-          docker network inspect itest-net --format '{{range .Containers}}{{.Name}}: {{.IPv4Address}}{{"\n"}}{{end}}' || true
-          
-          echo ""
-          echo "=== PostgreSQL Analysis ==="
-          echo "PostgreSQL logs (last 30 lines):"
-          docker logs itest-pg 2>&1 | tail -30 || true
-          
-          echo ""
-          echo "Database status:"
-          docker exec itest-pg psql -U postgres -c "\l" 2>/dev/null || echo "Could not connect to PostgreSQL"
-          
-          echo ""
-          echo "=== Auth Service Analysis ==="
-          echo "Auth service logs (last 50 lines):"
-          docker logs itest-auth 2>&1 | tail -50 || true
-          
-          echo ""
-          echo "Auth service process status:"
-          docker exec itest-auth ps aux 2>/dev/null || echo "Could not check processes"
-          
-          echo ""
-          echo "=== Account Service Analysis ==="
-          echo "Account service logs (last 50 lines):"
-          docker logs itest-account 2>&1 | tail -50 || true
+          echo "Cleaning up containers for ${{ matrix.test_mode }} mode..."
+          docker rm -f itest-account-${{ matrix.test_mode }} itest-auth-${{ matrix.test_mode }} itest-pg-${{ matrix.test_mode }} || true
+          docker network rm itest-net-${{ matrix.test_mode }} || true itest-account 2>&1 | tail -50 || true
           
           echo ""
           echo "Account service process status:"
