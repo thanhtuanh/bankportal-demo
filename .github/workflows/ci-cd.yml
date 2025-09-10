@@ -344,15 +344,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create network
-        run: docker network create itest-net
+        run: docker network create itest-net || true
 
       - name: Start Postgres
         run: |
           docker run -d --rm --name itest-pg --network itest-net \
-            -e POSTGRES_PASSWORD=pass -e POSTGRES_USER=bank -e POSTGRES_DB=bank \
+            -e POSTGRES_USER=bank \
+            -e POSTGRES_PASSWORD=pass \
+            -e POSTGRES_DB=bank \
             -p 5432:5432 postgres:15
-          for i in {1..20}; do
-            (docker exec itest-pg pg_isready && exit 0) || true
+          # Warten bis Postgres bereit
+          for i in {1..40}; do
+            docker exec itest-pg pg_isready && exit 0 || true
             sleep 3
           done
 
@@ -372,7 +375,7 @@ jobs:
             -e SPRING_DATASOURCE_USERNAME=bank \
             -e SPRING_DATASOURCE_PASSWORD=pass \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-            -p 8082:8082 ghcr.io/${{ env.IMAGE_NAME }}/account-service:latest
+            -p 8082:8080 ghcr.io/${{ env.IMAGE_NAME }}/account-service:latest
 
       - name: Wait for services
         run: |
@@ -384,15 +387,16 @@ jobs:
             sleep 3
           done
           echo "Services not healthy in time" && exit 1
-          
+
       - name: Show logs if fail
         if: failure()
         run: |
+          echo "==== Postgres logs ===="
+          docker logs itest-pg || true
           echo "==== Auth logs ===="
           docker logs itest-auth || true
           echo "==== Account logs ===="
           docker logs itest-account || true
-      
 
       - name: Probe APIs (example)
         run: |
