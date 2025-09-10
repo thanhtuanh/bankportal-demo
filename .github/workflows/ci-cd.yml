@@ -467,14 +467,57 @@ jobs:
       - name: Show logs if services not healthy
         if: failure()
         run: |
-          echo "==== Postgres logs ===="
-          docker logs itest-pg 2>&1 | tail -50 || true
+          echo "==============================================="
+          echo "           DETAILED FAILURE ANALYSIS"
+          echo "==============================================="
+          
           echo ""
-          echo "==== Auth service logs ===="  
+          echo "=== Container Status ==="
+          docker ps -a --filter "name=itest-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          
+          echo ""
+          echo "=== Network Information ==="
+          docker network inspect itest-net --format '{{range .Containers}}{{.Name}}: {{.IPv4Address}}{{"\n"}}{{end}}' || true
+          
+          echo ""
+          echo "=== PostgreSQL Analysis ==="
+          echo "PostgreSQL logs (last 30 lines):"
+          docker logs itest-pg 2>&1 | tail -30 || true
+          
+          echo ""
+          echo "Database status:"
+          docker exec itest-pg psql -U postgres -c "\l" 2>/dev/null || echo "Could not connect to PostgreSQL"
+          
+          echo ""
+          echo "=== Auth Service Analysis ==="
+          echo "Auth service logs (last 50 lines):"
           docker logs itest-auth 2>&1 | tail -50 || true
+          
           echo ""
-          echo "==== Account service logs ===="
+          echo "Auth service process status:"
+          docker exec itest-auth ps aux 2>/dev/null || echo "Could not check processes"
+          
+          echo ""
+          echo "=== Account Service Analysis ==="
+          echo "Account service logs (last 50 lines):"
           docker logs itest-account 2>&1 | tail -50 || true
+          
+          echo ""
+          echo "Account service process status:"
+          docker exec itest-account ps aux 2>/dev/null || echo "Could not check processes"
+          
+          echo ""
+          echo "=== Network Connectivity Tests ==="
+          echo "Testing connectivity from auth to postgres:"
+          docker exec itest-auth nc -zv itest-pg 5432 2>&1 || echo "Connection failed"
+          
+          echo "Testing connectivity from account to postgres:"
+          docker exec itest-account nc -zv itest-pg 5432 2>&1 || echo "Connection failed"
+          
+          echo ""
+          echo "=== Host Connectivity Tests ==="
+          echo "Testing local ports:"
+          netstat -tlnp | grep -E "(8081|8082|5432)" || echo "No matching ports found"
 
       - name: Test API endpoints
         run: |
