@@ -356,7 +356,7 @@ jobs:
           
           echo "Waiting for PostgreSQL to be ready..."
           for i in {1..60}; do
-            if docker exec itest-pg pg_isready -U bank -d bank > /dev/null 2>&1; then
+            if docker exec itest-pg bash -lc 'PGPASSWORD=pass pg_isready -h 127.0.0.1 -U bank -d bank >/dev/null 2>&1'; then
               echo "PostgreSQL is ready after $i attempts"
               break
             fi
@@ -371,8 +371,8 @@ jobs:
 
       - name: Prepare DB schemas
         run: |
-          docker exec -u postgres itest-pg psql -d bank -c "CREATE SCHEMA IF NOT EXISTS auth;"
-          docker exec -u postgres itest-pg psql -d bank -c "CREATE SCHEMA IF NOT EXISTS account;"
+          docker exec itest-pg bash -lc 'PGPASSWORD=pass psql -h 127.0.0.1 -U bank -d bank -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS auth;"'
+          docker exec itest-pg bash -lc 'PGPASSWORD=pass psql -h 127.0.0.1 -U bank -d bank -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS account;"'
 
       - name: Start Auth Service
         run: |
