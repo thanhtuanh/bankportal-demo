@@ -353,9 +353,9 @@ jobs:
             -e POSTGRES_PASSWORD=pass \
             -e POSTGRES_DB=bank \
             -p 5432:5432 postgres:15
-          # Warten bis Postgres bereit
+          # Wait until Postgres is ready
           for i in {1..40}; do
-            docker exec itest-pg pg_isready && exit 0 || true
+            docker exec itest-pg pg_isready && break || true
             sleep 3
           done
 
@@ -380,8 +380,8 @@ jobs:
       - name: Wait for services
         run: |
           for i in {1..60}; do
-            if curl -sSf http://localhost:8081/actuator/health >/dev/null && \
-               curl -sSf http://localhost:8082/actuator/health >/dev/null; then
+            if curl -sSf --connect-timeout 5 http://localhost:8081/actuator/health >/dev/null 2>&1 && \
+               curl -sSf --connect-timeout 5 http://localhost:8082/actuator/health >/dev/null 2>&1; then
               exit 0
             fi
             sleep 3
