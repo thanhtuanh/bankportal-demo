@@ -118,7 +118,17 @@ jobs:
   account-service-build:
     name: 💼 Account Service Build & Test
     runs-on: ubuntu-latest
-  
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: accountdb_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd "pg_isready -U test -d accountdb_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+        ports: ['5433:5432']
 
     defaults:
       run:
@@ -138,7 +148,12 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          # Redis während Maven-Tests NICHT verwenden:
+          # Deactivate Testcontainers auto magic in CI:
+          SPRING_TESTCONTAINERS_ENABLED: "false"
+          # Optional if you have Flyway/Liquibase in main deps and don't want it in tests:
+          SPRING_FLYWAY_ENABLED: "false"
+          SPRING_LIQUIBASE_ENABLED: "false"
+          # No Redis in CI unit/it tests:
           MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
           SPRING_DATA_REDIS_CLIENT_TYPE: "none"
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
