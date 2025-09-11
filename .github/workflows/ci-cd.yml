@@ -143,16 +143,13 @@ jobs:
           cache: maven
 
       - name: Verify (unit+it tests)
-        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true verify
+        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true \
+           -Dspring.testcontainers.enabled=false verify
+
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
-          # Deactivate Testcontainers auto magic in CI:
-          SPRING_TESTCONTAINERS_ENABLED: "false"
-          # Optional if you have Flyway/Liquibase in main deps and don't want it in tests:
-          SPRING_FLYWAY_ENABLED: "false"
-          SPRING_LIQUIBASE_ENABLED: "false"
           # No Redis in CI unit/it tests:
           MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
           SPRING_DATA_REDIS_CLIENT_TYPE: "none"
