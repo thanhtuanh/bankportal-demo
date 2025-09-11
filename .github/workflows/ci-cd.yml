@@ -143,7 +143,7 @@ jobs:
           cache: maven
 
       - name: Verify (unit+it tests)
-        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true -Dspring.testcontainers.enabled=false verify
+        run: mvn -B -ntp verify -DskipTests=false -DfailIfNoTests=true
 
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
