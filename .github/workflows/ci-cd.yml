@@ -118,18 +118,7 @@ jobs:
   account-service-build:
     name: 💼 Account Service Build & Test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: accountdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd "pg_isready -U test -d accountdb_test"
-          --health-interval 10s --health-timeout 5s --health-retries 10
-        ports: ['5433:5432']
-
+    
     defaults:
       run:
         working-directory: account-service
@@ -143,16 +132,8 @@ jobs:
           cache: maven
 
       - name: Verify (unit+it tests)
-        run: mvn -B -ntp verify -DskipTests=false -DfailIfNoTests=true
 
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/accountdb_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
-          # No Redis in CI unit/it tests:
-          MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
-          SPRING_DATA_REDIS_CLIENT_TYPE: "none"
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true verify
 
       - name: Upload test reports
         if: always()
