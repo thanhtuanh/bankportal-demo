@@ -118,17 +118,7 @@ jobs:
   account-service-build:
     name: 💼 Account Service Build & Test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: accountdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd "pg_isready -U test -d accountdb_test"
-          --health-interval 10s --health-timeout 5s --health-retries 10
-        ports: ['5433:5432']
+  
 
     defaults:
       run:
