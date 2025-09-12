@@ -114,7 +114,7 @@ docker-compose up -d
 docker-compose -f docker-compose-backup.yml up -d
 
 # Kubernetes Demo
-./scripts/start-k8s-demo.sh
+./scripts/start-k8s.sh
 ```
 
 ### **Technologie-Stack**
@@ -178,8 +178,8 @@ Dieses Projekt demonstriert:
 # Demo starten
 ./start-demo.sh
 
-# Kubernetes Demo
-./scripts/start-k8s-demo.sh
+# Kubernetes Demo (Wrapper über Einzelschritte)
+./scripts/start-k8s.sh
 
 # Services anzeigen
 docker-compose ps
@@ -193,7 +193,7 @@ docker-compose logs -f
 
 # Demo stoppen
 docker-compose down
-./scripts/stop-k8s-demo.sh
+./scripts/stop-k8s.sh
 ```
 
 ---
