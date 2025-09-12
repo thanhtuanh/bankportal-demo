@@ -60,17 +60,6 @@ jobs:
   auth-service-build:
     name: 🔐 Auth Service Build & Test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: authdb_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd "pg_isready -U test -d authdb_test"
-          --health-interval 10s --health-timeout 5s --health-retries 10
-        ports: ['5432:5432']
 
     defaults:
       run:
@@ -84,16 +73,8 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: Verify (unit+it tests)
-        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true verify
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/authdb_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
-          # Redis während Maven-Tests NICHT verwenden:
-          MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
-          SPRING_DATA_REDIS_CLIENT_TYPE: "none"
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      - name: Run unit tests
+        run: mvn -B -ntp -DskipTests=false -DfailIfNoTests=true test
 
       - name: Upload test reports
         if: always()

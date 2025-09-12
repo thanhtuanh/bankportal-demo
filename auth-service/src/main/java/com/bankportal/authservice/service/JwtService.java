@@ -2,18 +2,22 @@ package com.bankportal.authservice.service;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY = "mysecretkeymysecretkeymysecretkey123456"; // min. 256 bit
+    // Default für reine Unit-Tests ohne Spring-Context; wird durch @Value überschrieben, wenn verfügbar
+    @Value("${jwt.secret:mysecretkeymysecretkeymysecretkey123456}")
+    private String secret = "mysecretkeymysecretkeymysecretkey123456";
 
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(String username) {

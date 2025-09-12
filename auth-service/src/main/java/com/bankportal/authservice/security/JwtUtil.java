@@ -2,19 +2,26 @@
 package com.bankportal.authservice.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
 import java.util.Set;
 
 @Component
 public class JwtUtil {
-    @Value("${jwt.secret}")
+    @Value("${jwt.secret:mysecretkeymysecretkeymysecretkey123456}")
     private String secret;
 
-    @Value("${jwt.expiration-ms}")
+    @Value("${jwt.expiration-ms:86400000}")
     private long jwtExpirationMs;
+
+    private Key key() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateToken(String username, Set<String> roles) {
         return Jwts.builder()
@@ -22,19 +29,19 @@ public class JwtUtil {
             .claim("roles", roles)
             .setIssuedAt(new Date())
             .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
-            .signWith(SignatureAlgorithm.HS256, secret)
+            .signWith(key())
             .compact();
     }
 
     public Jws<Claims> validateToken(String token) {
-        return Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
+        return Jwts.parserBuilder().setSigningKey(key()).build().parseClaimsJws(token);
     }
 
-    // New methods for ValidationController
     public String extractUsername(String token) {
         try {
-            Claims claims = Jwts.parser()
-                .setSigningKey(secret)
+            Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
             return claims.getSubject();
@@ -45,8 +52,9 @@ public class JwtUtil {
 
     public boolean isTokenExpired(String token) {
         try {
-            Claims claims = Jwts.parser()
-                .setSigningKey(secret)
+            Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
             return claims.getExpiration().before(new Date());
@@ -57,7 +65,7 @@ public class JwtUtil {
 
     public boolean isTokenValid(String token) {
         try {
-            Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(key()).build().parseClaimsJws(token);
             return !isTokenExpired(token);
         } catch (Exception e) {
             return false;
@@ -66,8 +74,9 @@ public class JwtUtil {
 
     public Claims extractAllClaims(String token) {
         try {
-            return Jwts.parser()
-                .setSigningKey(secret)
+            return Jwts.parserBuilder()
+                .setSigningKey(key())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
         } catch (Exception e) {

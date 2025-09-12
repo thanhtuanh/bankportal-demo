@@ -16,9 +16,7 @@ import com.bankportal.authservice.dto.LoginRequest;
 import com.bankportal.authservice.dto.LoginResponse;
 import com.bankportal.authservice.dto.RegisterRequest;
 import com.bankportal.authservice.model.UserEntity;
-import com.bankportal.authservice.repository.UserRepository;
 import com.bankportal.authservice.service.AuthService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -27,26 +25,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class AuthController {
 
     private final AuthService authService;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     @PostMapping(value = "/register", consumes = "application/json", produces = "text/plain")
     @Operation(summary = "Registrieren", description = "Erzeugt einen neuen Benutzer", security = {})
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest req) {
-        if (userRepository.existsByUsername(req.getUsername())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("❌ Benutzername bereits vergeben");
-        }
+        // Delegiere an Service, dort wird Validierung + Encoding durchgeführt
+        UserEntity newUser = new UserEntity();
+        newUser.setUsername(req.getUsername());
+        // Rohes Passwort setzen; Service encodiert und setzt ROLE_USER
+        newUser.setPassword(req.getPassword());
 
-        UserEntity u = new UserEntity();
-        u.setUsername(req.getUsername());
-        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        u.setRole("USER"); // TODO: enum/constant ROLE_USER
+        authService.register(newUser);
 
-        userRepository.save(u);
-
-        // Optional: Location-Header / HATEOAS-light
         return ResponseEntity
-                .created(URI.create("/api/users/" + u.getId()))
+                .created(URI.create("/api/users"))
                 .body("✅ Benutzer erfolgreich registriert");
     }
 
