@@ -5,7 +5,7 @@
 
 set -e
 
-# Colors for output
+# Farben für Ausgaben (dieses Skript dient auch als kommentiertes Tutorial)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -14,19 +14,21 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Basis-Konfiguration
 NAMESPACE="bankportal"
 K8S_DIR="temp-k8s-files"
 MONITORING_ENABLED=true
 DASHBOARD_ENABLED=true
 
-# Banner
-echo -e "${BLUE}"
-echo "🚀 =============================================="
-echo "   BANK PORTAL - KUBERNETES DEMO STARTUP"
-echo "   Vollständiges K8s Setup für Lernen"
-echo "===============================================${NC}"
-echo ""
+# Banner als Funktion, damit Sourcen dieses Skripts keine Ausgabe erzeugt
+print_banner() {
+  echo -e "${BLUE}"
+  echo "🚀 =============================================="
+  echo "   BANK PORTAL - KUBERNETES DEMO STARTUP"
+  echo "   Vollständiges K8s Setup für Lernen"
+  echo "===============================================${NC}"
+  echo ""
+}
 
 # Check prerequisites
 check_prerequisites() {
@@ -841,6 +843,7 @@ show_access_info() {
 
 # Main execution
 main() {
+    print_banner
     check_prerequisites
     build_images
     load_images_to_cluster
@@ -882,5 +885,7 @@ case "${1:-}" in
         ;;
 esac
 
-# Run main function
-main
+# Nur ausführen, wenn das Skript direkt gestartet wurde (nicht beim 'source')
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

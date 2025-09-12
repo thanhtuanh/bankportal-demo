@@ -5,7 +5,7 @@
 
 set -e
 
-# Colors for output
+# Farben für Ausgaben (dieses Skript dient auch als kommentiertes Tutorial)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -18,13 +18,15 @@ NC='\033[0m' # No Color
 NAMESPACE="bankportal"
 K8S_DIR="temp-k8s-files"
 
-# Banner
-echo -e "${RED}"
-echo "🛑 =============================================="
-echo "   BANK PORTAL - KUBERNETES DEMO STOP"
-echo "   Sauberes Herunterfahren"
-echo "===============================================${NC}"
-echo ""
+# Banner nur bei direkter Ausführung anzeigen
+print_banner() {
+  echo -e "${RED}"
+  echo "🛑 =============================================="
+  echo "   BANK PORTAL - KUBERNETES DEMO STOP"
+  echo "   Sauberes Herunterfahren"
+  echo "===============================================${NC}"
+  echo ""
+}
 
 # Stop port forwarding
 stop_port_forwarding() {
@@ -176,6 +178,7 @@ show_cleanup_summary() {
 
 # Main execution
 main() {
+    print_banner
     stop_port_forwarding
     delete_k8s_resources
     delete_k8s_dashboard
@@ -212,5 +215,7 @@ case "${1:-}" in
         ;;
 esac
 
-# Run main function
-main
+# Nur ausführen, wenn das Skript direkt gestartet wurde (nicht beim 'source')
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
