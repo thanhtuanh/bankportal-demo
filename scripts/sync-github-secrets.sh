@@ -15,7 +15,8 @@ NC='\033[0m' # No Color
 # Configuration
 REPO_OWNER="thanhtuanh"
 REPO_NAME="bankportal-demo"
-ENV_FILE=".env.production"
+# Allow override via ENV_FILE env var; default to .env.production in current dir
+ENV_FILE="${ENV_FILE:-.env.production}"
 
 echo -e "${BLUE}🔐 GitHub Secrets Synchronisation${NC}"
 echo -e "${BLUE}===================================${NC}"
@@ -28,16 +29,21 @@ if ! command -v gh &> /dev/null; then
     exit 1
 fi
 
-# Check if user is authenticated
+# Ensure auth (use GH_TOKEN if available for non-interactive login)
 if ! gh auth status &> /dev/null; then
     echo -e "${YELLOW}🔐 GitHub Authentifizierung erforderlich...${NC}"
-    gh auth login
+    if [[ -n "${GH_TOKEN:-}" ]]; then
+        echo -e "${YELLOW}🔑 Verwende GH_TOKEN für Login (non-interactive)${NC}"
+        gh auth login --with-token <<< "$GH_TOKEN"
+    else
+        gh auth login
+    fi
 fi
 
 # Check if .env file exists
 if [[ ! -f "$ENV_FILE" ]]; then
     echo -e "${RED}❌ $ENV_FILE nicht gefunden!${NC}"
-    echo -e "${YELLOW}Erstellen Sie zuerst eine .env.production Datei${NC}"
+    echo -e "${YELLOW}Erstellen Sie zuerst eine .env.production Datei oder setzen Sie ENV_FILE=/pfad/zur/datei${NC}"
     exit 1
 fi
 
@@ -82,9 +88,20 @@ while IFS='=' read -r key value || [[ -n "$key" ]]; do
     if [[ -z "$key" || -z "$value" ]]; then
         continue
     fi
+
+    # Safety: never push GitHub auth tokens as repo secrets
+    if [[ "$key" =~ ^GH_.*TOKEN$ ]]; then
+        echo -e "${YELLOW}⏭️  Überspringe potentiellen Auth-Token Key: $key${NC}"
+        continue
+    fi
     
     # Remove quotes from value if present
     value=$(echo "$value" | sed 's/^["'\'']//' | sed 's/["'\'']$//')
+    # Skip obvious placeholder values
+    if [[ "$value" == "..." || "$value" == "CHANGE_ME" || "$value" == *"<CHANGE"* || "$value" == *"TBD"* ]]; then
+        echo -e "${YELLOW}⏭️  Überspringe Platzhalterwert für $key${NC}"
+        continue
+    fi
     
     # Set the secret
     if set_github_secret "$key" "$value"; then
