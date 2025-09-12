@@ -6,7 +6,7 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../start-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 if [[ "${DASHBOARD_ENABLED:-true}" == "true" ]]; then
   install_k8s_dashboard
@@ -14,4 +14,3 @@ if [[ "${DASHBOARD_ENABLED:-true}" == "true" ]]; then
 else
   echo -e "${YELLOW}ℹ️  Dashboard ist deaktiviert – Schritt übersprungen${NC}"
 fi
-

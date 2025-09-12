@@ -11,13 +11,13 @@ Dieser Guide führt Sie durch das Lernen von Kubernetes mit dem Bank Portal Proj
 ### **Ein-Klick Kubernetes Demo:**
 ```bash
 # Vollständiges K8s Setup starten
-./scripts/start-k8s-demo.sh
+./scripts/start-k8s.sh
 
 # Minimales Setup (ohne Monitoring)
-./scripts/start-k8s-demo.sh --minimal
+./scripts/start-k8s.sh --minimal
 
 # Demo stoppen
-./scripts/stop-k8s-demo.sh
+./scripts/stop-k8s.sh
 ```
 
 ### **Was wird deployed:**
@@ -70,7 +70,7 @@ kubectl cluster-info
 kubectl get nodes
 
 # 3. Erstes Demo starten
-./scripts/start-k8s-demo.sh --minimal
+./scripts/start-k8s.sh --minimal
 ```
 
 #### **Tag 3-4: Pods & Deployments verstehen**
@@ -180,7 +180,7 @@ curl http://localhost:8081/api/health
 #### **Tag 22-24: Monitoring Setup**
 ```bash
 # Vollständiges Monitoring starten
-./scripts/start-k8s-demo.sh
+./scripts/start-k8s.sh
 
 # Prometheus Targets prüfen
 kubectl port-forward service/prometheus 9090:9090 -n bankportal

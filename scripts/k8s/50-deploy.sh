@@ -6,8 +6,7 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../start-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 deploy_to_kubernetes
 echo -e "${GREEN}✅ Deploy ausgeführt – weiter mit Schritt 60 (Warten/Status)${NC}"
-

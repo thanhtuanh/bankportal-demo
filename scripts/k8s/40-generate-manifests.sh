@@ -6,7 +6,7 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../start-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 create_k8s_manifests
 create_database_manifests
@@ -17,4 +17,3 @@ if [[ "${MONITORING_ENABLED:-true}" == "true" ]]; then
 fi
 
 echo -e "${GREEN}✅ Manifeste erzeugt – weiter mit Schritt 50 (Deploy)${NC}"
-

@@ -6,8 +6,7 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../start-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 build_images
 echo -e "${GREEN}✅ Images gebaut – weiter mit Schritt 30 (Images in den Cluster laden)${NC}"
-

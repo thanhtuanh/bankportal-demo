@@ -5,9 +5,8 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../stop-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 cleanup_generated_files
 show_final_status
 echo -e "${GREEN}✅ Dateien bereinigt${NC}"
-

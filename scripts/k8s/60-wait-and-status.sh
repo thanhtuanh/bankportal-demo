@@ -5,10 +5,9 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../start-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 wait_for_services
 show_status
 
 echo -e "${GREEN}✅ Dienste bereit – weiter mit Schritt 70 (Port‑Forwarding)${NC}"
-

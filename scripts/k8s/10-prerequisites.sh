@@ -7,11 +7,8 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Funktionen aus dem Demo-Skript einbinden (ohne direkten Start)
-source "${SCRIPT_DIR}/../start-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 check_prerequisites
 
 echo -e "${GREEN}✅ Voraussetzungen erfüllt – weiter mit Schritt 20 (Images bauen)${NC}"
-

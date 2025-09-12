@@ -5,8 +5,7 @@
 
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../stop-k8s-demo.sh"
+source "${SCRIPT_DIR}/lib.sh"
 
 stop_port_forwarding
 echo -e "${GREEN}✅ Port‑Forwarding beendet${NC}"
-
